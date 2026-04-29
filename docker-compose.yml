@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    image: canonical-discovery:runtime
+    working_dir: /workspace
+    command: ["python", "--version"]
+
+  devcontainer:
+    build:
+      context: .
+      target: dev
+    image: canonical-discovery:dev
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
+    tty: true
+    stdin_open: true
+    volumes:
+      - .:/workspace
+      - poetry-venvs:/opt/poetry-venvs
+
+volumes:
+  poetry-venvs:

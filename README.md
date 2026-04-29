@@ -53,6 +53,20 @@ Code should follow those documents, not invent a parallel architecture.
 
 - `docs/rfcs/0001-canonical-graph-authority-and-hcl.md`
   - normative architecture RFC for `2.0`
+- `docs/rfcs/0002-operational-plane-and-deployment-topology.md`
+  - normative operational-plane and service-boundary RFC
+- `docs/rfcs/0003-1x-carry-over-concepts.md`
+  - normative guidance on what to preserve from `1.x`
+- `docs/rfcs/0004-netbox-projector-carry-over-concepts.md`
+  - normative guidance on what to preserve for the NetBox projector
+- `docs/rfcs/0005-run-job-task-and-lease-state-model.md`
+  - normative control-plane state model for operational work
+- `docs/rfcs/0006-collector-api-contract.md`
+  - normative collector lifecycle and API contract guidance
+- `docs/rfcs/0007-projection-plan-and-result-artifact-contract.md`
+  - normative planner/executor artifact contract guidance
+- `docs/architecture/ARCHITECTURE.md`
+  - informative system-level architecture summary across the RFC set
 - `docs/architecture/IMPLEMENTATION_OUTLINE.md`
   - initial implementation companion and milestone framing
 - `docs/ROADMAP.md`
