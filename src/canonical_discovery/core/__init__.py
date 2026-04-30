@@ -7,7 +7,7 @@ from canonical_discovery.core.enums import (
     EdgeType,
     NodeScope,
 )
-from canonical_discovery.core.models import Claim, Edge, GraphArtifact, Node
+from canonical_discovery.core.models import Claim, Edge, EdgeClaim, GraphArtifact, Node, NodeClaim
 
 __all__ = [
     "AuthorityMode",
@@ -15,8 +15,10 @@ __all__ = [
     "Category",
     "Claim",
     "Edge",
+    "EdgeClaim",
     "EdgeType",
     "GraphArtifact",
     "Node",
+    "NodeClaim",
     "NodeScope",
 ]

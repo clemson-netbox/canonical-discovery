@@ -34,10 +34,10 @@ class Edge:
 
 
 @dataclass(frozen=True, slots=True)
-class Claim:
-    """Source-contributed assertion about a canonical object field."""
+class NodeClaim:
+    """Source-contributed assertion about a canonical node field."""
 
-    object_key: str
+    node_key: str
     scope: NodeScope
     category: Category
     field_name: str
@@ -48,6 +48,26 @@ class Claim:
     authority_tier: AuthorityTier = AuthorityTier.SUPPLEMENTAL
     confidence: float = 0.0
     mode: AuthorityMode = AuthorityMode.REPLACE
+
+
+@dataclass(frozen=True, slots=True)
+class EdgeClaim:
+    """Source-contributed assertion about a canonical edge field."""
+
+    edge_key: str
+    edge_type: EdgeType
+    category: Category
+    field_name: str
+    value: Any
+    source_name: str
+    provenance: dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime | None = None
+    authority_tier: AuthorityTier = AuthorityTier.SUPPLEMENTAL
+    confidence: float = 0.0
+    mode: AuthorityMode = AuthorityMode.REPLACE
+
+
+type Claim = NodeClaim | EdgeClaim
 
 
 @dataclass(frozen=True, slots=True)

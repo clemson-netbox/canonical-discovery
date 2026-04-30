@@ -9,11 +9,12 @@ from canonical_discovery.core import (
     AuthorityMode,
     AuthorityTier,
     Category,
-    Claim,
     Edge,
+    EdgeClaim,
     EdgeType,
     GraphArtifact,
     Node,
+    NodeClaim,
     NodeScope,
 )
 
@@ -41,10 +42,10 @@ class EdgeTests(unittest.TestCase):
         self.assertEqual(edge.target_key, "port-b")
 
 
-class ClaimTests(unittest.TestCase):
-    def test_claim_defaults_match_minimal_contract(self) -> None:
-        claim = Claim(
-            object_key="device-1",
+class NodeClaimTests(unittest.TestCase):
+    def test_node_claim_defaults_match_minimal_contract(self) -> None:
+        claim = NodeClaim(
+            node_key="device-1",
             scope=NodeScope.PHYSICAL_DEVICE,
             category=Category.IDENTITY,
             field_name="hostname",
@@ -52,7 +53,7 @@ class ClaimTests(unittest.TestCase):
             source_name="example-source",
         )
 
-        self.assertEqual(claim.object_key, "device-1")
+        self.assertEqual(claim.node_key, "device-1")
         self.assertEqual(claim.scope, NodeScope.PHYSICAL_DEVICE)
         self.assertEqual(claim.category, Category.IDENTITY)
         self.assertEqual(claim.field_name, "hostname")
@@ -64,10 +65,10 @@ class ClaimTests(unittest.TestCase):
         self.assertEqual(claim.confidence, 0.0)
         self.assertEqual(claim.mode, AuthorityMode.REPLACE)
 
-    def test_claim_accepts_explicit_provenance_and_resolution_fields(self) -> None:
+    def test_node_claim_accepts_explicit_provenance_and_resolution_fields(self) -> None:
         timestamp = datetime(2026, 4, 30, 12, 0, 0)
-        claim = Claim(
-            object_key="device-1",
+        claim = NodeClaim(
+            node_key="device-1",
             scope=NodeScope.PHYSICAL_DEVICE,
             category=Category.HARDWARE_INVENTORY,
             field_name="serial",
@@ -87,6 +88,30 @@ class ClaimTests(unittest.TestCase):
         self.assertEqual(claim.mode, AuthorityMode.FILL_IF_MISSING)
 
 
+class EdgeClaimTests(unittest.TestCase):
+    def test_edge_claim_defaults_match_minimal_contract(self) -> None:
+        claim = EdgeClaim(
+            edge_key="edge-1",
+            edge_type=EdgeType.CONNECTED_TO,
+            category=Category.TOPOLOGY,
+            field_name="state",
+            value="up",
+            source_name="example-source",
+        )
+
+        self.assertEqual(claim.edge_key, "edge-1")
+        self.assertEqual(claim.edge_type, EdgeType.CONNECTED_TO)
+        self.assertEqual(claim.category, Category.TOPOLOGY)
+        self.assertEqual(claim.field_name, "state")
+        self.assertEqual(claim.value, "up")
+        self.assertEqual(claim.source_name, "example-source")
+        self.assertEqual(claim.provenance, {})
+        self.assertIsNone(claim.timestamp)
+        self.assertEqual(claim.authority_tier, AuthorityTier.SUPPLEMENTAL)
+        self.assertEqual(claim.confidence, 0.0)
+        self.assertEqual(claim.mode, AuthorityMode.REPLACE)
+
+
 class GraphArtifactTests(unittest.TestCase):
     def test_graph_artifact_groups_nodes_edges_and_claims(self) -> None:
         node = Node(key="device-1", scope=NodeScope.PHYSICAL_DEVICE)
@@ -96,8 +121,8 @@ class GraphArtifactTests(unittest.TestCase):
             source_key="device-1",
             target_key="component-1",
         )
-        claim = Claim(
-            object_key="device-1",
+        claim = NodeClaim(
+            node_key="device-1",
             scope=NodeScope.PHYSICAL_DEVICE,
             category=Category.IDENTITY,
             field_name="hostname",
