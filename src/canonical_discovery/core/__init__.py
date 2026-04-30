@@ -8,6 +8,7 @@ from canonical_discovery.core.enums import (
     NodeScope,
 )
 from canonical_discovery.core.models import Claim, Edge, EdgeClaim, GraphArtifact, Node, NodeClaim
+from canonical_discovery.core.validation import validate_graph_invariants
 
 __all__ = [
     "AuthorityMode",
@@ -21,4 +22,5 @@ __all__ = [
     "Node",
     "NodeClaim",
     "NodeScope",
+    "validate_graph_invariants",
 ]
