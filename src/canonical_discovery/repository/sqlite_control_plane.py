@@ -160,6 +160,52 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             for row in rows
         ]
 
+    def claim_job(
+        self,
+        *,
+        job_id: str,
+        claimant_id: str,
+        lease_id: str,
+        issued_at: datetime,
+        expires_at: datetime,
+    ) -> Lease | None:
+        with self._connection() as connection:
+            cursor = connection.execute(
+                "UPDATE jobs SET status = ? WHERE job_id = ? AND status = ?",
+                (JobStatus.CLAIMED.value, job_id, JobStatus.QUEUED.value),
+            )
+            if cursor.rowcount != 1:
+                return None
+
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO leases (
+                    lease_id,
+                    job_id,
+                    claimant_id,
+                    issued_at,
+                    expires_at,
+                    last_heartbeat_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    lease_id,
+                    job_id,
+                    claimant_id,
+                    issued_at.isoformat(),
+                    expires_at.isoformat(),
+                    None,
+                ),
+            )
+
+        return Lease(
+            lease_id=lease_id,
+            job_id=job_id,
+            claimant_id=claimant_id,
+            issued_at=issued_at,
+            expires_at=expires_at,
+        )
+
     def save_collector_session(self, session: CollectorSession) -> None:
         with self._connection() as connection:
             connection.execute(

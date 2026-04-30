@@ -93,6 +93,55 @@ class CollectorApiTests(unittest.TestCase):
         self.assertEqual(len(response.json()["jobs"]), 1)
         self.assertEqual(self.repository.get_job("job-1").status, JobStatus.CLAIMED)
 
+    def test_claim_work_does_not_double_lease_same_job(self) -> None:
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-1",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-2",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+
+        first = self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-1",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+        second = self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-2",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+
+        self.assertEqual(len(first.json()["jobs"]), 1)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["jobs"], [])
+
     def test_heartbeat_requires_existing_lease(self) -> None:
         response = self.client.post(
             "/collectors/heartbeat",
@@ -222,6 +271,41 @@ class CollectorApiTests(unittest.TestCase):
                 "collector_instance_id": "collector-1",
                 "job_id": "job-1",
                 "status": "not-a-status",
+                "summary": "done",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_result_submission_rejects_non_terminal_status(self) -> None:
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-1",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+        self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-1",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+
+        response = self.client.post(
+            "/collectors/results",
+            json={
+                "collector_instance_id": "collector-1",
+                "job_id": "job-1",
+                "status": "queued",
                 "summary": "done",
             },
         )

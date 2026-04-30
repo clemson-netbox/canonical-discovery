@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from canonical_discovery.control_plane import (
     CollectorSession,
@@ -38,6 +39,18 @@ class ControlPlaneRepository(ABC):
     def list_jobs(
         self, *, status: JobStatus | None = None, service_role: str | None = None
     ) -> list[Job]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def claim_job(
+        self,
+        *,
+        job_id: str,
+        claimant_id: str,
+        lease_id: str,
+        issued_at: datetime,
+        expires_at: datetime,
+    ) -> Lease | None:
         raise NotImplementedError
 
     @abstractmethod

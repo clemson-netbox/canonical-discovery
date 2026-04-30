@@ -39,5 +39,3 @@ RUN mkdir -p /var/lib/canonical-discovery
 ENV PYTHONPATH=/workspace/src
 
 CMD ["sh", "-lc", "export PATH=/opt/poetry/bin:$PATH && poetry run gunicorn -k uvicorn.workers.UvicornWorker canonical_discovery.api:app --bind 0.0.0.0:8000"]
-
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "canonical_discovery.api:app", "--bind", "0.0.0.0:8000"]

@@ -22,6 +22,7 @@ from canonical_discovery.repository import ControlPlaneRepository, SQLiteControl
 
 LEASE_TTL_SECONDS = 300
 CHECK_IN_INTERVAL_SECONDS = 60
+TERMINAL_JOB_STATUSES = {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED}
 
 
 class CollectorCheckInRequest(BaseModel):
@@ -147,26 +148,15 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
 
             issued_at = datetime.now(UTC)
             expires_at = issued_at + timedelta(seconds=LEASE_TTL_SECONDS)
-            lease = Lease(
-                lease_id=str(uuid4()),
+            lease = repository.claim_job(
                 job_id=job.job_id,
                 claimant_id=request.collector_instance_id,
+                lease_id=str(uuid4()),
                 issued_at=issued_at,
                 expires_at=expires_at,
             )
-            repository.save_lease(lease)
-            repository.save_job(
-                Job(
-                    job_id=job.job_id,
-                    run_id=job.run_id,
-                    job_kind=job.job_kind,
-                    service_role=job.service_role,
-                    required_tags=job.required_tags,
-                    priority=job.priority,
-                    status=JobStatus.CLAIMED,
-                    attempt_count=job.attempt_count,
-                )
-            )
+            if lease is None:
+                continue
             claimed_jobs.append(
                 ClaimedJobResponse(
                     job_id=job.job_id,
@@ -248,6 +238,10 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
             next_status = JobStatus(request.status)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="invalid job status") from exc
+        if next_status not in TERMINAL_JOB_STATUSES:
+            raise HTTPException(
+                status_code=400, detail="result submission requires a terminal job status"
+            )
 
         result = Result(
             result_id=str(uuid4()),
