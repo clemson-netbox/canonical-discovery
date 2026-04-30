@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from canonical_discovery.control_plane import (
@@ -23,6 +25,28 @@ from canonical_discovery.repository import ControlPlaneRepository, SQLiteControl
 LEASE_TTL_SECONDS = 300
 CHECK_IN_INTERVAL_SECONDS = 60
 TERMINAL_JOB_STATUSES = {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED}
+DEFAULT_LOG_LEVEL = "INFO"
+
+
+def resolve_log_level(level_name: str | None) -> int:
+    if level_name is None:
+        return logging.INFO
+
+    normalized = level_name.upper()
+    return getattr(logging, normalized, logging.INFO)
+
+
+def configure_logging() -> logging.Logger:
+    level_name = os.environ.get("LOG_LEVEL", DEFAULT_LOG_LEVEL)
+    level = resolve_log_level(level_name)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        force=True,
+    )
+    logger = logging.getLogger("canonical_discovery.api")
+    logger.setLevel(level)
+    return logger
 
 
 class CollectorCheckInRequest(BaseModel):
@@ -103,8 +127,29 @@ class ResultSubmissionResponse(BaseModel):
 
 
 def create_app(repository: ControlPlaneRepository) -> FastAPI:
-    app = FastAPI(title="canonical-discovery")
+    logger = configure_logging()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        logger.info("starting canonical-discovery api")
+        logger.debug("api log level=%s db_path=%s", logger.getEffectiveLevel(), DEFAULT_DB_PATH)
+        yield
+        logger.info("stopping canonical-discovery api")
+
+    app = FastAPI(title="canonical-discovery", lifespan=lifespan)
     app.state.repository = repository
+    app.state.logger = logger
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        response = await call_next(request)
+        logger.info(
+            "request method=%s path=%s status=%s",
+            request.method,
+            request.url.path,
+            response.status_code,
+        )
+        return response
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -112,6 +157,12 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
 
     @app.post("/collectors/check-in", response_model=CollectorCheckInResponse)
     def collector_check_in(request: CollectorCheckInRequest) -> CollectorCheckInResponse:
+        logger.debug(
+            "collector check-in collector_id=%s tags=%s load=%s",
+            request.collector_instance_id,
+            request.capability_tags,
+            request.current_active_load,
+        )
         repository.save_collector_session(
             CollectorSession(
                 collector_instance_id=request.collector_instance_id,
@@ -140,6 +191,12 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
         claim_limit = request.preferred_batch_size or available_capacity
         capability_tags = set(request.capability_tags)
         claimed_jobs: list[ClaimedJobResponse] = []
+        logger.debug(
+            "claim work collector_id=%s capacity=%s tags=%s",
+            request.collector_instance_id,
+            available_capacity,
+            sorted(capability_tags),
+        )
 
         for job in repository.list_jobs(status=JobStatus.QUEUED, service_role="collector"):
             if available_capacity <= 0 or len(claimed_jobs) >= claim_limit:
@@ -157,7 +214,14 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
                 expires_at=expires_at,
             )
             if lease is None:
+                logger.debug("claim skipped job_id=%s reason=not-queued", job.job_id)
                 continue
+            logger.info(
+                "job claimed job_id=%s collector_id=%s lease_id=%s",
+                job.job_id,
+                request.collector_instance_id,
+                lease.lease_id,
+            )
             claimed_jobs.append(
                 ClaimedJobResponse(
                     job_id=job.job_id,
@@ -173,6 +237,9 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
 
     @app.post("/collectors/heartbeat", response_model=HeartbeatResponse)
     def heartbeat(request: HeartbeatRequest) -> HeartbeatResponse:
+        logger.debug(
+            "heartbeat lease_id=%s collector_id=%s", request.lease_id, request.collector_instance_id
+        )
         lease = repository.get_lease(request.lease_id)
         if lease is None:
             raise HTTPException(status_code=404, detail="lease not found")
@@ -202,6 +269,11 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
 
     @app.post("/collectors/graph-submissions", response_model=GraphSubmissionResponse)
     def graph_submission(request: GraphSubmissionRequest) -> GraphSubmissionResponse:
+        logger.debug(
+            "graph submission lease_id=%s collector_id=%s",
+            request.lease_id,
+            request.collector_instance_id,
+        )
         lease = repository.get_lease(request.lease_id)
         if lease is None:
             raise HTTPException(status_code=404, detail="lease not found")
@@ -221,11 +293,24 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
             submitted_at=datetime.now(UTC),
         )
         repository.save_graph_submission(submission)
+        logger.info(
+            "graph submission accepted submission_id=%s lease_id=%s collector_id=%s",
+            submission.submission_id,
+            submission.lease_id,
+            submission.collector_instance_id,
+        )
 
         return GraphSubmissionResponse(submission_id=submission.submission_id, accepted=True)
 
     @app.post("/collectors/results", response_model=ResultSubmissionResponse)
     def result_submission(request: ResultSubmissionRequest) -> ResultSubmissionResponse:
+        logger.debug(
+            "result submission lease_id=%s job_id=%s collector_id=%s status=%s",
+            request.lease_id,
+            request.job_id,
+            request.collector_instance_id,
+            request.status,
+        )
         job = repository.get_job(request.job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="job not found")
@@ -272,6 +357,14 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
             raise HTTPException(
                 status_code=409, detail="job result could not be finalized atomically"
             )
+
+        logger.info(
+            "result accepted job_id=%s lease_id=%s collector_id=%s status=%s",
+            request.job_id,
+            request.lease_id,
+            request.collector_instance_id,
+            request.status,
+        )
 
         return ResultSubmissionResponse(result_id=result.result_id, accepted=True)
 

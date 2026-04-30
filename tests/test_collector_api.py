@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import tempfile
 import unittest
 from datetime import datetime
@@ -9,6 +11,7 @@ from datetime import datetime
 from fastapi.testclient import TestClient
 
 from canonical_discovery.api import create_app
+from canonical_discovery.api.app import configure_logging
 from canonical_discovery.control_plane import Job, JobStatus, Run, RunStatus
 from canonical_discovery.repository import SQLiteControlPlaneRepository
 
@@ -41,6 +44,14 @@ class CollectorApiTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temp_db.close()
+        os.environ.pop("LOG_LEVEL", None)
+
+    def test_configure_logging_respects_log_level_env(self) -> None:
+        os.environ["LOG_LEVEL"] = "DEBUG"
+
+        logger = configure_logging()
+
+        self.assertEqual(logger.getEffectiveLevel(), logging.DEBUG)
 
     def test_health_endpoint(self) -> None:
         response = self.client.get("/healthz")
