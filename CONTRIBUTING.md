@@ -133,6 +133,19 @@ runtime image with an environment-configurable tag, so branch validation can use
 images such as `:dev`, `:pr1234`, or release tags without rewriting the compose
 file.
 
+When repository services are already modeled in `docker-compose.yml`, prefer
+`docker compose` over ad hoc raw `docker` commands.
+
+Use the services intentionally:
+
+- `devcontainer` for the bind-mounted development environment
+- `app` for copied-source runtime image builds and branch-local verification
+
+For branch-local copied-source verification, prefer commands such as:
+
+- `docker compose build app`
+- `docker compose run --rm app sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry install --with dev && poetry run ruff format --check . && poetry run ruff check . && PYTHONPATH=src poetry run pytest"`
+
 ## Testing Philosophy
 
 The first code milestones should prioritize:

@@ -48,3 +48,13 @@ Branch and PR builds may also publish review-specific tags such as `:pr1234`.
 
 Use local rebuilds when needed, but prefer the published branch image when the
 goal is to validate what CI built for the current integrated branch state.
+
+When working with repository-defined service environments, prefer `docker
+compose` commands over raw `docker` commands.
+
+In practice:
+
+- use `docker compose run --rm devcontainer ...` for bind-mounted development
+  environment commands
+- use `docker compose build app` and `docker compose run --rm app ...` for
+  copied-source branch-local verification against the current checkout
