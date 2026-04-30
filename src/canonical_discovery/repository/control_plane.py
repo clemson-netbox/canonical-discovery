@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from canonical_discovery.control_plane import Job, Lease, Result, Run
+from canonical_discovery.control_plane import Job, JobStatus, Lease, Result, Run
 
 
 class ControlPlaneRepository(ABC):
@@ -24,6 +24,12 @@ class ControlPlaneRepository(ABC):
 
     @abstractmethod
     def get_job(self, job_id: str) -> Job | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_jobs(
+        self, *, status: JobStatus | None = None, service_role: str | None = None
+    ) -> list[Job]:
         raise NotImplementedError
 
     @abstractmethod

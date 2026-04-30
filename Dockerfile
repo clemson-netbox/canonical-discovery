@@ -35,3 +35,5 @@ FROM base AS runtime
 WORKDIR /workspace
 
 COPY . /workspace
+
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "canonical_discovery.api:app", "--bind", "0.0.0.0:8000"]

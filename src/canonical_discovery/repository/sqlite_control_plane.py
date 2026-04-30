@@ -114,6 +114,43 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             attempt_count=row[7],
         )
 
+    def list_jobs(
+        self, *, status: JobStatus | None = None, service_role: str | None = None
+    ) -> list[Job]:
+        where_clauses = []
+        params: list[str] = []
+
+        if status is not None:
+            where_clauses.append("status = ?")
+            params.append(status.value)
+        if service_role is not None:
+            where_clauses.append("service_role = ?")
+            params.append(service_role)
+
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        query = (
+            "SELECT job_id, run_id, job_kind, service_role, required_tags, "
+            "priority, status, attempt_count "
+            f"FROM jobs{where_sql}"
+        )
+
+        with self._connection() as connection:
+            rows = connection.execute(query, tuple(params)).fetchall()
+
+        return [
+            Job(
+                job_id=row[0],
+                run_id=row[1],
+                job_kind=row[2],
+                service_role=row[3],
+                required_tags=tuple(json.loads(row[4])),
+                priority=row[5],
+                status=JobStatus(row[6]),
+                attempt_count=row[7],
+            )
+            for row in rows
+        ]
+
     def save_lease(self, lease: Lease) -> None:
         with self._connection() as connection:
             connection.execute(

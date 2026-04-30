@@ -5,7 +5,8 @@ services:
       target: runtime
     image: ${CANONICAL_DISCOVERY_APP_IMAGE:-ghcr.io/clemson-netbox/canonical-discovery}:${CANONICAL_DISCOVERY_IMAGE_TAG:-dev}
     working_dir: /workspace
-    command: ["python", "--version"]
+    ports:
+      - "8000:8000"
 
   devcontainer:
     build:
