@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from canonical_discovery.control_plane import Job, JobStatus, Lease, Result, Run
+from canonical_discovery.control_plane import (
+    CollectorSession,
+    GraphSubmission,
+    Job,
+    JobStatus,
+    Lease,
+    Result,
+    Run,
+)
 
 
 class ControlPlaneRepository(ABC):
@@ -33,6 +41,14 @@ class ControlPlaneRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def save_collector_session(self, session: CollectorSession) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_collector_session(self, collector_instance_id: str) -> CollectorSession | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def save_lease(self, lease: Lease) -> None:
         raise NotImplementedError
 
@@ -41,9 +57,21 @@ class ControlPlaneRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_lease_for_job(self, job_id: str) -> Lease | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def save_result(self, result: Result) -> None:
         raise NotImplementedError
 
     @abstractmethod
     def get_result(self, result_id: str) -> Result | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_graph_submission(self, submission: GraphSubmission) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_graph_submission(self, submission_id: str) -> GraphSubmission | None:
         raise NotImplementedError

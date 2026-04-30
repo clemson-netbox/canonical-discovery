@@ -28,12 +28,16 @@ FROM base AS dev
 
 RUN poetry install --no-root --with dev
 
-CMD ["sleep", "infinity"]
-
 FROM base AS runtime
 
 WORKDIR /workspace
 
 COPY . /workspace
+
+RUN mkdir -p /var/lib/canonical-discovery
+
+ENV PYTHONPATH=/workspace/src
+
+CMD ["sh", "-lc", "export PATH=/opt/poetry/bin:$PATH && poetry run gunicorn -k uvicorn.workers.UvicornWorker canonical_discovery.api:app --bind 0.0.0.0:8000"]
 
 CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "canonical_discovery.api:app", "--bind", "0.0.0.0:8000"]

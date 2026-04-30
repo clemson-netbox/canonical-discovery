@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -10,32 +10,18 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from canonical_discovery.control_plane import Job, JobStatus, Lease, Result
+from canonical_discovery.control_plane import (
+    CollectorSession,
+    GraphSubmission,
+    Job,
+    JobStatus,
+    Lease,
+    Result,
+)
 from canonical_discovery.repository import ControlPlaneRepository, SQLiteControlPlaneRepository
 
 LEASE_TTL_SECONDS = 300
 CHECK_IN_INTERVAL_SECONDS = 60
-
-
-@dataclass(slots=True)
-class CollectorSession:
-    collector_instance_id: str
-    collector_version: str
-    capability_tags: tuple[str, ...]
-    max_concurrent_jobs: int
-    current_active_load: int
-    last_known_job_ids: tuple[str, ...]
-    placement: dict[str, str] = field(default_factory=dict)
-    last_check_in_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-
-
-@dataclass(slots=True)
-class GraphSubmission:
-    submission_id: str
-    collector_instance_id: str
-    lease_id: str
-    payload: dict[str, Any]
-    submitted_at: datetime
 
 
 class CollectorCheckInRequest(BaseModel):
@@ -117,8 +103,6 @@ class ResultSubmissionResponse(BaseModel):
 def create_app(repository: ControlPlaneRepository) -> FastAPI:
     app = FastAPI(title="canonical-discovery")
     app.state.repository = repository
-    app.state.collector_sessions = {}
-    app.state.graph_submissions = {}
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -126,14 +110,17 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
 
     @app.post("/collectors/check-in", response_model=CollectorCheckInResponse)
     def collector_check_in(request: CollectorCheckInRequest) -> CollectorCheckInResponse:
-        app.state.collector_sessions[request.collector_instance_id] = CollectorSession(
-            collector_instance_id=request.collector_instance_id,
-            collector_version=request.collector_version,
-            capability_tags=tuple(request.capability_tags),
-            max_concurrent_jobs=request.max_concurrent_jobs,
-            current_active_load=request.current_active_load,
-            last_known_job_ids=tuple(request.last_known_job_ids),
-            placement=dict(request.placement),
+        repository.save_collector_session(
+            CollectorSession(
+                collector_instance_id=request.collector_instance_id,
+                collector_version=request.collector_version,
+                capability_tags=tuple(request.capability_tags),
+                max_concurrent_jobs=request.max_concurrent_jobs,
+                current_active_load=request.current_active_load,
+                last_known_job_ids=tuple(request.last_known_job_ids),
+                placement=dict(request.placement),
+                last_check_in_at=datetime.now(UTC),
+            )
         )
         return CollectorCheckInResponse(
             collector_instance_id=request.collector_instance_id,
@@ -143,7 +130,7 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
 
     @app.post("/collectors/claim-work", response_model=ClaimWorkResponse)
     def claim_work(request: ClaimWorkRequest) -> ClaimWorkResponse:
-        session = app.state.collector_sessions.get(request.collector_instance_id)
+        session = repository.get_collector_session(request.collector_instance_id)
         if session is None:
             raise HTTPException(status_code=404, detail="collector session not found")
 
@@ -198,6 +185,10 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
         lease = repository.get_lease(request.lease_id)
         if lease is None:
             raise HTTPException(status_code=404, detail="lease not found")
+        if lease.claimant_id != request.collector_instance_id:
+            raise HTTPException(status_code=403, detail="lease claimant mismatch")
+        if lease.expires_at <= datetime.now(UTC):
+            raise HTTPException(status_code=409, detail="lease expired")
 
         updated_lease = Lease(
             lease_id=lease.lease_id,
@@ -220,6 +211,10 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
         lease = repository.get_lease(request.lease_id)
         if lease is None:
             raise HTTPException(status_code=404, detail="lease not found")
+        if lease.claimant_id != request.collector_instance_id:
+            raise HTTPException(status_code=403, detail="lease claimant mismatch")
+        if lease.expires_at <= datetime.now(UTC):
+            raise HTTPException(status_code=409, detail="lease expired")
 
         submission = GraphSubmission(
             submission_id=str(uuid4()),
@@ -228,7 +223,7 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
             payload=dict(request.payload),
             submitted_at=datetime.now(UTC),
         )
-        app.state.graph_submissions[submission.submission_id] = submission
+        repository.save_graph_submission(submission)
 
         return GraphSubmissionResponse(submission_id=submission.submission_id, accepted=True)
 
@@ -237,6 +232,22 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
         job = repository.get_job(request.job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="job not found")
+        lease = repository.get_lease_for_job(request.job_id)
+        if lease is None:
+            raise HTTPException(status_code=409, detail="active lease not found for job")
+        if lease.claimant_id != request.collector_instance_id:
+            raise HTTPException(status_code=403, detail="lease claimant mismatch")
+        if lease.expires_at <= datetime.now(UTC):
+            raise HTTPException(status_code=409, detail="lease expired")
+        if job.status not in {JobStatus.CLAIMED, JobStatus.RUNNING}:
+            raise HTTPException(
+                status_code=409, detail="job is not claimable for terminal result submission"
+            )
+
+        try:
+            next_status = JobStatus(request.status)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid job status") from exc
 
         result = Result(
             result_id=str(uuid4()),
@@ -255,7 +266,7 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
                 service_role=job.service_role,
                 required_tags=job.required_tags,
                 priority=job.priority,
-                status=JobStatus(request.status),
+                status=next_status,
                 attempt_count=job.attempt_count,
             )
         )
@@ -265,4 +276,8 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
     return app
 
 
-app = create_app(SQLiteControlPlaneRepository(":memory:"))
+DEFAULT_DB_PATH = os.environ.get(
+    "CANONICAL_DISCOVERY_DB_PATH", "/var/lib/canonical-discovery/control-plane.db"
+)
+
+app = create_app(SQLiteControlPlaneRepository(DEFAULT_DB_PATH))

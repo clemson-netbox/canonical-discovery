@@ -7,6 +7,10 @@ services:
     working_dir: /workspace
     ports:
       - "8000:8000"
+    environment:
+      CANONICAL_DISCOVERY_DB_PATH: /var/lib/canonical-discovery/control-plane.db
+    volumes:
+      - app-data:/var/lib/canonical-discovery
 
   devcontainer:
     build:
@@ -22,4 +26,5 @@ services:
       - poetry-venvs:/opt/poetry-venvs
 
 volumes:
+  app-data:
   poetry-venvs:

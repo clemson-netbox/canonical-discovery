@@ -7,7 +7,16 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 
-from canonical_discovery.control_plane import Job, JobStatus, Lease, Result, Run, RunStatus
+from canonical_discovery.control_plane import (
+    CollectorSession,
+    GraphSubmission,
+    Job,
+    JobStatus,
+    Lease,
+    Result,
+    Run,
+    RunStatus,
+)
 from canonical_discovery.repository.control_plane import ControlPlaneRepository
 
 
@@ -151,6 +160,57 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             for row in rows
         ]
 
+    def save_collector_session(self, session: CollectorSession) -> None:
+        with self._connection() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO collector_sessions (
+                    collector_instance_id,
+                    collector_version,
+                    capability_tags,
+                    max_concurrent_jobs,
+                    current_active_load,
+                    last_known_job_ids,
+                    placement,
+                    last_check_in_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session.collector_instance_id,
+                    session.collector_version,
+                    json.dumps(list(session.capability_tags)),
+                    session.max_concurrent_jobs,
+                    session.current_active_load,
+                    json.dumps(list(session.last_known_job_ids)),
+                    json.dumps(session.placement),
+                    session.last_check_in_at.isoformat(),
+                ),
+            )
+
+    def get_collector_session(self, collector_instance_id: str) -> CollectorSession | None:
+        row = self._fetch_one(
+            """
+            SELECT collector_instance_id, collector_version, capability_tags,
+                   max_concurrent_jobs, current_active_load, last_known_job_ids,
+                   placement, last_check_in_at
+            FROM collector_sessions WHERE collector_instance_id = ?
+            """,
+            (collector_instance_id,),
+        )
+        if row is None:
+            return None
+
+        return CollectorSession(
+            collector_instance_id=row[0],
+            collector_version=row[1],
+            capability_tags=tuple(json.loads(row[2])),
+            max_concurrent_jobs=row[3],
+            current_active_load=row[4],
+            last_known_job_ids=tuple(json.loads(row[5])),
+            placement=json.loads(row[6]),
+            last_check_in_at=datetime.fromisoformat(row[7]),
+        )
+
     def save_lease(self, lease: Lease) -> None:
         with self._connection() as connection:
             connection.execute(
@@ -181,6 +241,28 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             FROM leases WHERE lease_id = ?
             """,
             (lease_id,),
+        )
+        if row is None:
+            return None
+
+        return Lease(
+            lease_id=row[0],
+            job_id=row[1],
+            claimant_id=row[2],
+            issued_at=datetime.fromisoformat(row[3]),
+            expires_at=datetime.fromisoformat(row[4]),
+            last_heartbeat_at=datetime.fromisoformat(row[5]) if row[5] is not None else None,
+        )
+
+    def get_lease_for_job(self, job_id: str) -> Lease | None:
+        row = self._fetch_one(
+            """
+            SELECT lease_id, job_id, claimant_id, issued_at, expires_at, last_heartbeat_at
+            FROM leases WHERE job_id = ?
+            ORDER BY issued_at DESC
+            LIMIT 1
+            """,
+            (job_id,),
         )
         if row is None:
             return None
@@ -237,6 +319,46 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             artifact_refs=tuple(json.loads(row[5])),
         )
 
+    def save_graph_submission(self, submission: GraphSubmission) -> None:
+        with self._connection() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO graph_submissions (
+                    submission_id,
+                    collector_instance_id,
+                    lease_id,
+                    payload,
+                    submitted_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    submission.submission_id,
+                    submission.collector_instance_id,
+                    submission.lease_id,
+                    json.dumps(submission.payload),
+                    submission.submitted_at.isoformat(),
+                ),
+            )
+
+    def get_graph_submission(self, submission_id: str) -> GraphSubmission | None:
+        row = self._fetch_one(
+            """
+            SELECT submission_id, collector_instance_id, lease_id, payload, submitted_at
+            FROM graph_submissions WHERE submission_id = ?
+            """,
+            (submission_id,),
+        )
+        if row is None:
+            return None
+
+        return GraphSubmission(
+            submission_id=row[0],
+            collector_instance_id=row[1],
+            lease_id=row[2],
+            payload=json.loads(row[3]),
+            submitted_at=datetime.fromisoformat(row[4]),
+        )
+
     def _initialize_schema(self) -> None:
         with self._connection() as connection:
             connection.executescript(
@@ -276,6 +398,25 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
                     summary TEXT NOT NULL,
                     metrics TEXT NOT NULL,
                     artifact_refs TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS collector_sessions (
+                    collector_instance_id TEXT PRIMARY KEY,
+                    collector_version TEXT NOT NULL,
+                    capability_tags TEXT NOT NULL,
+                    max_concurrent_jobs INTEGER NOT NULL,
+                    current_active_load INTEGER NOT NULL,
+                    last_known_job_ids TEXT NOT NULL,
+                    placement TEXT NOT NULL,
+                    last_check_in_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS graph_submissions (
+                    submission_id TEXT PRIMARY KEY,
+                    collector_instance_id TEXT NOT NULL,
+                    lease_id TEXT NOT NULL REFERENCES leases(lease_id),
+                    payload TEXT NOT NULL,
+                    submitted_at TEXT NOT NULL
                 );
                 """
             )

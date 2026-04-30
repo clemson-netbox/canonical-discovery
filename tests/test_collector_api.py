@@ -117,6 +117,41 @@ class CollectorApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_heartbeat_rejects_claimant_mismatch(self) -> None:
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-1",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+        claim_response = self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-1",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+        lease_id = claim_response.json()["jobs"][0]["lease_id"]
+
+        response = self.client.post(
+            "/collectors/heartbeat",
+            json={
+                "collector_instance_id": "collector-2",
+                "lease_id": lease_id,
+                "current_execution_status": "running",
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
     def test_result_submission_persists_result_and_updates_job(self) -> None:
         self.client.post(
             "/collectors/check-in",
@@ -157,6 +192,78 @@ class CollectorApiTests(unittest.TestCase):
         result_id = response.json()["result_id"]
         self.assertEqual(self.repository.get_result(result_id).summary, "done")
         self.assertEqual(self.repository.get_job("job-1").status, JobStatus.SUCCEEDED)
+
+    def test_result_submission_rejects_invalid_status_before_persisting_result(self) -> None:
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-1",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+        self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-1",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+
+        response = self.client.post(
+            "/collectors/results",
+            json={
+                "collector_instance_id": "collector-1",
+                "job_id": "job-1",
+                "status": "not-a-status",
+                "summary": "done",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_graph_submission_is_persisted_in_repository(self) -> None:
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-1",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+        claim_response = self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-1",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+        lease_id = claim_response.json()["jobs"][0]["lease_id"]
+
+        response = self.client.post(
+            "/collectors/graph-submissions",
+            json={
+                "collector_instance_id": "collector-1",
+                "lease_id": lease_id,
+                "payload": {"nodes": []},
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        submission_id = response.json()["submission_id"]
+        self.assertEqual(self.repository.get_graph_submission(submission_id).lease_id, lease_id)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 """Control-plane runtime models."""
 
 from canonical_discovery.control_plane.models import (
+    CollectorSession,
+    GraphSubmission,
     Heartbeat,
     Job,
     Lease,
@@ -11,6 +13,8 @@ from canonical_discovery.control_plane.models import (
 from canonical_discovery.control_plane.status import JobStatus, RunStatus, TaskStatus
 
 __all__ = [
+    "CollectorSession",
+    "GraphSubmission",
     "Heartbeat",
     "Job",
     "JobStatus",
