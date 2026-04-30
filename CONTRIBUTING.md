@@ -76,6 +76,12 @@ rather than serving as the default base for issue branches.
 
 PRs should prefer small, coherent commits over large batch drops.
 
+Review outcomes should be published back to the PR thread so findings, no-findings
+results, and residual risks are visible to humans and other agents.
+
+When a review identifies issues, publish one PR comment per finding and include
+relevant code locations. Use GitHub code references when possible.
+
 ## Merge Gates
 
 Merge should not occur until all of the following are true:
