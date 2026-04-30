@@ -3,7 +3,7 @@ services:
     build:
       context: .
       target: runtime
-    image: canonical-discovery:runtime
+    image: ${CANONICAL_DISCOVERY_APP_IMAGE:-ghcr.io/clemson-netbox/canonical-discovery}:${CANONICAL_DISCOVERY_IMAGE_TAG:-dev}
     working_dir: /workspace
     command: ["python", "--version"]
 
@@ -11,7 +11,7 @@ services:
     build:
       context: .
       target: dev
-    image: canonical-discovery:dev
+    image: ${CANONICAL_DISCOVERY_DEV_IMAGE:-canonical-discovery}:${CANONICAL_DISCOVERY_DEV_TAG:-dev}
     working_dir: /workspace
     command: ["sleep", "infinity"]
     tty: true

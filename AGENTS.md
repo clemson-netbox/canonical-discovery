@@ -23,23 +23,28 @@
 - Use typed branch prefixes such as `feature/`, `bugfix/`, `chore/`, `docs/`, `refactor/`, and `test/`.
 - Keep commits small and reviewable.
 - Build unit tests alongside code changes; do not treat tests as a later cleanup pass.
+- Run the relevant `lint -> test -> build` verification steps before committing when feasible.
+- For Python changes, treat Ruff verification as both `ruff format --check` and `ruff check`; repair files locally before commit if either fails.
 - Do not merge until CI, review gates, and runtime evidence checks are satisfied.
 - When runtime behavior changes, validate using API-retrieved artifacts and status rather than direct database inspection.
 
 ## Verified Commands
 
 - Build the devcontainer image with `docker compose build devcontainer`.
-- Install dev dependencies in the container with `docker compose run --rm devcontainer poetry install --with dev`.
-- Lint in the container with `docker compose run --rm devcontainer poetry run ruff check .`.
-- Format in the container with `docker compose run --rm devcontainer poetry run ruff format .`.
+- Install dev dependencies in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry install --with dev"`.
+- Lint in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff check ."`.
+- Format in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff format ."`.
+- Run tests in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && PYTHONPATH=src poetry run pytest"`.
 - Build the runtime image with `docker compose build app`.
 - The devcontainer uses the root `docker-compose.yml` service named `devcontainer`.
 - The devcontainer runs `poetry install --with dev` on create.
 - Poetry virtualenvs are stored in the container volume mounted at `/opt/poetry-venvs`, not in the repo checkout.
 - The `devcontainer` service uses a bind mount for live repo edits. The `app` runtime image copies the repo into `/workspace` at build time and does not use the dev bind mount.
+- The `app` service defaults to the published GHCR image `ghcr.io/clemson-netbox/canonical-discovery:${CANONICAL_DISCOVERY_IMAGE_TAG:-dev}` and can be retagged via environment variables in `.env`.
+- The `devcontainer` service still builds locally by default, but its image name/tag are also configurable via environment variables.
 - GitHub Actions should validate lint/build on commits and publish runtime images tagged by PR number or branch name, with `latest` for `main`.
 - Prefer the published GHCR branch image such as `ghcr.io/clemson-netbox/canonical-discovery:dev` when validating the integrated development environment.
-- There is still no verified root test or typecheck command until those tools are added to config.
+- There is still no verified root typecheck command until that tooling is added to config.
 
 ## Architecture Guardrails
 

@@ -65,7 +65,9 @@ Expected workflow:
 4. use a typed branch prefix such as `feature/`, `bugfix/`, `chore/`, `docs/`, `refactor/`, or `test/`
 5. keep changes focused and incrementally reviewable
 6. build unit tests alongside the code instead of deferring them
-7. open a PR early and keep a steady review/update cycle
+7. run the relevant local verification steps before commit when feasible, with
+   the default order `lint -> test -> build`
+8. open a PR early and keep a steady review/update cycle
 
 Normal implementation PRs should target `dev`.
 
@@ -85,6 +87,19 @@ Merge should not occur until all of the following are true:
   endpoints when the change affects runtime behavior
 
 Direct database inspection is not the normal validation path.
+
+Before committing, contributors should normally run the relevant lint and test
+commands for the affected scope. Before opening or updating a PR, contributors
+should normally rerun `lint -> test -> build` for the branch state when those
+checks exist.
+
+For Python code in this repository, linting with Ruff should include both:
+
+- `poetry run ruff format --check .`
+- `poetry run ruff check .`
+
+If either check fails, fix the file contents before committing rather than
+deferring the repair to CI.
 
 ## CI And Image Publishing
 
@@ -106,6 +121,11 @@ result can be exercised before merge.
 
 When validating the integrated development environment, prefer the published
 GHCR branch image over ad hoc local rebuilds when practical.
+
+The root `docker-compose.yml` defaults the `app` service to the published GHCR
+runtime image with an environment-configurable tag, so branch validation can use
+images such as `:dev`, `:pr1234`, or release tags without rewriting the compose
+file.
 
 ## Testing Philosophy
 
