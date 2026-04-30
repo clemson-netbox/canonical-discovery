@@ -1,0 +1,76 @@
+name: Publish Image
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-runtime-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image tags
+        id: tags
+        env:
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          image="ghcr.io/${REPOSITORY,,}"
+          short_sha="${GITHUB_SHA::12}"
+
+          tags="${image}:sha-${short_sha}"
+          push="true"
+
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            tags="${tags},${image}:pr${PR_NUMBER}"
+            if [ "${PR_HEAD_REPO}" != "${REPOSITORY}" ]; then
+              push="false"
+            fi
+          else
+            branch_tag="$(printf '%s' "${REF_NAME}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-')"
+            tags="${tags},${image}:${branch_tag}"
+            if [ "${REF_NAME}" = "main" ]; then
+              tags="${tags},${image}:latest"
+            fi
+          fi
+
+          {
+            echo "image=${image}"
+            echo "tags=${tags}"
+            echo "push=${push}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to GitHub Container Registry
+        if: steps.tags.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          push: ${{ steps.tags.outputs.push == 'true' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

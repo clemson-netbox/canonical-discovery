@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build devcontainer image
+        run: docker compose build devcontainer
+
+      - name: Install dev dependencies in container
+        run: docker compose run --rm devcontainer poetry install --with dev
+
+      - name: Run Ruff lint checks
+        run: docker compose run --rm devcontainer poetry run ruff check .
+
+      - name: Run Ruff format check
+        run: docker compose run --rm devcontainer poetry run ruff format --check .
+
+      - name: Build runtime image
+        run: docker compose build app
