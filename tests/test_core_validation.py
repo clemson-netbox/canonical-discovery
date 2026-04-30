@@ -159,6 +159,16 @@ class GraphInvariantValidationTests(unittest.TestCase):
             ],
         )
 
+    def test_device_component_requires_attachment_edge(self) -> None:
+        graph = GraphArtifact(
+            nodes=(Node(key="component-1", scope=NodeScope.DEVICE_COMPONENT),),
+        )
+
+        self.assertEqual(
+            validate_graph_invariants(graph),
+            ["device_component 'component-1' must attach to a physical_device or device_component"],
+        )
+
     def test_ip_address_requires_assigned_to_relationship(self) -> None:
         graph = GraphArtifact(
             nodes=(
@@ -178,6 +188,16 @@ class GraphInvariantValidationTests(unittest.TestCase):
         self.assertEqual(
             validate_graph_invariants(graph),
             ["ip_address 'ip-1' must be attached with assigned_to, not 'contains'"],
+        )
+
+    def test_ip_address_requires_explicit_attachment_edge(self) -> None:
+        graph = GraphArtifact(
+            nodes=(Node(key="ip-1", scope=NodeScope.IP_ADDRESS),),
+        )
+
+        self.assertEqual(
+            validate_graph_invariants(graph),
+            ["ip_address 'ip-1' must have an explicit assigned_to relationship"],
         )
 
     def test_unknown_edge_endpoint_is_reported(self) -> None:
