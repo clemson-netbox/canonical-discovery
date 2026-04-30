@@ -12,55 +12,48 @@ class HclParserTests(unittest.TestCase):
     def test_parse_hcl_document_supports_minimal_valid_shape(self) -> None:
         document = parse_hcl_document(
             {
-                "sources": [
-                    {
-                        "name": "vmware",
+                "source": {
+                    "vmware": {
                         "api_type": "vmware",
                         "authority": {
-                            "scopes": [
-                                {
-                                    "scope": "physical_device",
-                                    "categories": [
-                                        {
-                                            "category": "hardware_inventory",
+                            "scope": {
+                                "physical_device": {
+                                    "category": {
+                                        "hardware_inventory": {
                                             "tier": "supplemental",
                                             "confidence": 20,
                                             "mode": "fill_if_missing",
                                         }
-                                    ],
-                                    "fields": [
-                                        {
-                                            "name": "serial",
+                                    },
+                                    "field": {
+                                        "serial": {
                                             "tier": "observe_only",
                                             "mode": "observe_only",
                                         }
-                                    ],
+                                    },
                                 }
-                            ]
+                            }
                         },
                     }
-                ],
-                "policies": [
-                    {
-                        "name": "campus-defaults",
-                        "classifications": [
-                            {
-                                "target": "location",
+                },
+                "policy": {
+                    "campus-defaults": {
+                        "classify": {
+                            "location": {
                                 "attributes": {"site_map": "regex/site_map"},
                             }
-                        ],
+                        }
                     }
-                ],
-                "projections": [
-                    {
-                        "name": "netbox",
+                },
+                "projection": {
+                    "netbox": {
                         "include_scopes": ["physical_device", "port"],
-                        "scopes": [
-                            {"scope": "physical_device", "resource": "dcim.devices"},
-                            {"scope": "port", "resource": "dcim.interfaces"},
-                        ],
+                        "scope": {
+                            "physical_device": {"resource": "dcim.devices"},
+                            "port": {"resource": "dcim.interfaces"},
+                        },
                     }
-                ],
+                },
             }
         )
 
@@ -88,13 +81,12 @@ class HclParserTests(unittest.TestCase):
         with self.assertRaisesRegex(HclConfigError, "invalid node scope"):
             parse_hcl_document(
                 {
-                    "sources": [
-                        {
-                            "name": "vmware",
+                    "source": {
+                        "vmware": {
                             "api_type": "vmware",
-                            "authority": {"scopes": [{"scope": "not_a_scope"}]},
+                            "authority": {"scope": {"not_a_scope": {}}},
                         }
-                    ]
+                    }
                 }
             )
 
@@ -102,26 +94,23 @@ class HclParserTests(unittest.TestCase):
         with self.assertRaisesRegex(HclConfigError, "invalid authority tier"):
             parse_hcl_document(
                 {
-                    "sources": [
-                        {
-                            "name": "vmware",
+                    "source": {
+                        "vmware": {
                             "api_type": "vmware",
                             "authority": {
-                                "scopes": [
-                                    {
-                                        "scope": "physical_device",
-                                        "categories": [
-                                            {
-                                                "category": "hardware_inventory",
+                                "scope": {
+                                    "physical_device": {
+                                        "category": {
+                                            "hardware_inventory": {
                                                 "tier": "wrong",
                                                 "mode": "replace",
                                             }
-                                        ],
+                                        }
                                     }
-                                ]
+                                }
                             },
                         }
-                    ]
+                    }
                 }
             )
 
@@ -129,33 +118,34 @@ class HclParserTests(unittest.TestCase):
         with self.assertRaisesRegex(HclConfigError, "confidence must be a number"):
             parse_hcl_document(
                 {
-                    "sources": [
-                        {
-                            "name": "vmware",
+                    "source": {
+                        "vmware": {
                             "api_type": "vmware",
                             "authority": {
-                                "scopes": [
-                                    {
-                                        "scope": "physical_device",
-                                        "categories": [
-                                            {
-                                                "category": "hardware_inventory",
+                                "scope": {
+                                    "physical_device": {
+                                        "category": {
+                                            "hardware_inventory": {
                                                 "tier": "supplemental",
                                                 "confidence": "high",
                                                 "mode": "replace",
                                             }
-                                        ],
+                                        }
                                     }
-                                ]
+                                }
                             },
                         }
-                    ]
+                    }
                 }
             )
 
     def test_parse_hcl_document_rejects_non_list_sections(self) -> None:
-        with self.assertRaisesRegex(HclConfigError, "sources must be a list"):
-            parse_hcl_document({"sources": {}})
+        with self.assertRaisesRegex(HclConfigError, "source blocks must be a mapping"):
+            parse_hcl_document({"source": []})
+
+    def test_parse_hcl_document_rejects_empty_block_name(self) -> None:
+        with self.assertRaisesRegex(HclConfigError, "source block names must be non-empty strings"):
+            parse_hcl_document({"source": {"": {"api_type": "vmware"}}})
 
     def test_parse_hcl_document_rejects_non_mapping_document(self) -> None:
         with self.assertRaisesRegex(HclConfigError, "HCL document input must be a mapping"):

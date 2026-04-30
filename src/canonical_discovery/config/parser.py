@@ -31,18 +31,23 @@ def parse_hcl_document(data: dict[str, Any]) -> HclDocument:
         raise HclConfigError("HCL document input must be a mapping")
 
     return HclDocument(
-        sources=tuple(parse_source_block(item) for item in require_list(data, "sources")),
-        policies=tuple(parse_policy_block(item) for item in require_list(data, "policies")),
+        sources=tuple(
+            parse_source_block(name, body) for name, body in require_block_map(data, "source")
+        ),
+        policies=tuple(
+            parse_policy_block(name, body) for name, body in require_block_map(data, "policy")
+        ),
         projections=tuple(
-            parse_projection_block(item) for item in require_list(data, "projections")
+            parse_projection_block(name, body)
+            for name, body in require_block_map(data, "projection")
         ),
     )
 
 
-def parse_source_block(data: Any) -> SourceBlock:
+def parse_source_block(name: str, data: Any) -> SourceBlock:
     block = require_mapping(data, "source block")
     return SourceBlock(
-        name=require_string(block, "name"),
+        name=name,
         api_type=require_string(block, "api_type"),
         authority=parse_authority_block(block["authority"]) if "authority" in block else None,
         options=require_mapping(block.get("options", {}), "source options"),
@@ -52,33 +57,39 @@ def parse_source_block(data: Any) -> SourceBlock:
 def parse_authority_block(data: Any) -> AuthorityBlock:
     block = require_mapping(data, "authority block")
     return AuthorityBlock(
-        scopes=tuple(parse_authority_scope(item) for item in require_list(block, "scopes")),
+        scopes=tuple(
+            parse_authority_scope(name, body) for name, body in require_block_map(block, "scope")
+        ),
     )
 
 
-def parse_authority_scope(data: Any) -> AuthorityScope:
+def parse_authority_scope(name: str, data: Any) -> AuthorityScope:
     block = require_mapping(data, "authority scope")
     return AuthorityScope(
-        scope=parse_node_scope(require_string(block, "scope")),
+        scope=parse_node_scope(name),
         categories=tuple(
-            parse_authority_category(item) for item in require_list(block, "categories")
+            parse_authority_category(category_name, category_body)
+            for category_name, category_body in require_block_map(block, "category")
         ),
-        fields=tuple(parse_authority_field(item) for item in require_list(block, "fields")),
+        fields=tuple(
+            parse_authority_field(field_name, field_body)
+            for field_name, field_body in require_block_map(block, "field")
+        ),
     )
 
 
-def parse_authority_category(data: Any) -> AuthorityCategory:
+def parse_authority_category(name: str, data: Any) -> AuthorityCategory:
     block = require_mapping(data, "authority category")
     return AuthorityCategory(
-        category=parse_category(require_string(block, "category")),
+        category=parse_category(name),
         rule=parse_authority_rule(block),
     )
 
 
-def parse_authority_field(data: Any) -> AuthorityField:
+def parse_authority_field(name: str, data: Any) -> AuthorityField:
     block = require_mapping(data, "authority field")
     return AuthorityField(
-        name=require_string(block, "name"),
+        name=name,
         rule=parse_authority_rule(block),
     )
 
@@ -92,40 +103,44 @@ def parse_authority_rule(data: Any) -> AuthorityRule:
     )
 
 
-def parse_policy_block(data: Any) -> PolicyBlock:
+def parse_policy_block(name: str, data: Any) -> PolicyBlock:
     block = require_mapping(data, "policy block")
     return PolicyBlock(
-        name=require_string(block, "name"),
+        name=name,
         classifications=tuple(
-            parse_policy_classify(item) for item in require_list(block, "classifications")
+            parse_policy_classify(target, classify_body)
+            for target, classify_body in require_block_map(block, "classify")
         ),
     )
 
 
-def parse_policy_classify(data: Any) -> PolicyClassify:
+def parse_policy_classify(name: str, data: Any) -> PolicyClassify:
     block = require_mapping(data, "policy classify")
     return PolicyClassify(
-        target=parse_node_scope(require_string(block, "target")),
+        target=parse_node_scope(name),
         attributes=require_mapping(block.get("attributes", {}), "policy classify attributes"),
     )
 
 
-def parse_projection_block(data: Any) -> ProjectionBlock:
+def parse_projection_block(name: str, data: Any) -> ProjectionBlock:
     block = require_mapping(data, "projection block")
     return ProjectionBlock(
-        name=require_string(block, "name"),
+        name=name,
         include_scopes=tuple(
             parse_node_scope(value)
             for value in require_string_list(block.get("include_scopes", []), "include_scopes")
         ),
-        scopes=tuple(parse_projection_scope(item) for item in require_list(block, "scopes")),
+        scopes=tuple(
+            parse_projection_scope(scope_name, scope_body)
+            for scope_name, scope_body in require_block_map(block, "scope")
+        ),
     )
 
 
-def parse_projection_scope(data: Any) -> ProjectionScope:
+def parse_projection_scope(name: str, data: Any) -> ProjectionScope:
     block = require_mapping(data, "projection scope")
     return ProjectionScope(
-        scope=parse_node_scope(require_string(block, "scope")),
+        scope=parse_node_scope(name),
         resource=block.get("resource")
         if block.get("resource") is None
         else require_string(block, "resource"),
@@ -167,6 +182,19 @@ def require_mapping(value: Any, label: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise HclConfigError(f"{label} must be a mapping")
     return value
+
+
+def require_block_map(mapping: dict[str, Any], key: str) -> list[tuple[str, Any]]:
+    value = mapping.get(key, {})
+    if not isinstance(value, dict):
+        raise HclConfigError(f"{key} blocks must be a mapping")
+
+    parsed: list[tuple[str, Any]] = []
+    for name, body in value.items():
+        if not isinstance(name, str) or name == "":
+            raise HclConfigError(f"{key} block names must be non-empty strings")
+        parsed.append((name, body))
+    return parsed
 
 
 def require_list(mapping: dict[str, Any], key: str) -> list[Any]:
