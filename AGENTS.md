@@ -13,6 +13,7 @@
 - Python is pinned to `^3.12`. Use Poetry inside the devcontainer for orchestration and Ruff for linting/formatting.
 - `tool.poetry.package-mode = false` right now. Do not assume there is already an installable package or entrypoint.
 - Do not run `poetry` on the host machine for normal repo work. Keep Poetry environments and installs inside the devcontainer flow.
+- The minimal HCL parser contract is expected to consume `python-hcl2` output rather than inventing a separate raw-text parser first.
 
 ## Delivery Workflow
 

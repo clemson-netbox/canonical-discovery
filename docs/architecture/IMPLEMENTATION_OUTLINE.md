@@ -69,6 +69,9 @@ The first HCL implementation should support:
 
 It should not initially try to recreate the full `1.x` expression system.
 
+The current parser direction assumes `python-hcl2` as the HCL text frontend and
+then maps its loaded block output into typed config contracts.
+
 ## Service Boundary Reminder
 
 Early code should preserve the logical split established by the RFCs even if the
