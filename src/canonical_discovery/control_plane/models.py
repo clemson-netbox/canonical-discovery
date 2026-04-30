@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from canonical_discovery.control_plane.status import JobStatus, RunStatus, TaskStatus
@@ -123,3 +123,24 @@ class Result:
             "metrics": dict(self.metrics),
             "artifact_refs": list(self.artifact_refs),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class CollectorSession:
+    collector_instance_id: str
+    collector_version: str
+    capability_tags: tuple[str, ...] = ()
+    max_concurrent_jobs: int = 0
+    current_active_load: int = 0
+    last_known_job_ids: tuple[str, ...] = ()
+    placement: dict[str, str] = field(default_factory=dict)
+    last_check_in_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+@dataclass(frozen=True, slots=True)
+class GraphSubmission:
+    submission_id: str
+    collector_instance_id: str
+    lease_id: str
+    payload: dict[str, Any] = field(default_factory=dict)
+    submitted_at: datetime = field(default_factory=lambda: datetime.now(UTC))

@@ -5,7 +5,12 @@ services:
       target: runtime
     image: ${CANONICAL_DISCOVERY_APP_IMAGE:-ghcr.io/clemson-netbox/canonical-discovery}:${CANONICAL_DISCOVERY_IMAGE_TAG:-dev}
     working_dir: /workspace
-    command: ["python", "--version"]
+    ports:
+      - "8000:8000"
+    environment:
+      CANONICAL_DISCOVERY_DB_PATH: /var/lib/canonical-discovery/control-plane.db
+    volumes:
+      - app-data:/var/lib/canonical-discovery
 
   devcontainer:
     build:
@@ -21,4 +26,5 @@ services:
       - poetry-venvs:/opt/poetry-venvs
 
 volumes:
+  app-data:
   poetry-venvs:

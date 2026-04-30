@@ -7,7 +7,16 @@ import tempfile
 import unittest
 from datetime import datetime
 
-from canonical_discovery.control_plane import Job, JobStatus, Lease, Result, Run, RunStatus
+from canonical_discovery.control_plane import (
+    CollectorSession,
+    GraphSubmission,
+    Job,
+    JobStatus,
+    Lease,
+    Result,
+    Run,
+    RunStatus,
+)
 from canonical_discovery.repository import SQLiteControlPlaneRepository
 
 
@@ -67,6 +76,8 @@ class SQLiteControlPlaneRepositoryTests(unittest.TestCase):
             self.assertIsNone(repository.get_job("missing"))
             self.assertIsNone(repository.get_lease("missing"))
             self.assertIsNone(repository.get_result("missing"))
+            self.assertIsNone(repository.get_collector_session("missing"))
+            self.assertIsNone(repository.get_graph_submission("missing"))
 
     def test_in_memory_database_supports_round_trip(self) -> None:
         repository = SQLiteControlPlaneRepository(":memory:")
@@ -125,6 +136,111 @@ class SQLiteControlPlaneRepositoryTests(unittest.TestCase):
 
             with self.assertRaises(sqlite3.IntegrityError):
                 repository.save_result(result)
+
+    def test_round_trip_collector_session_and_graph_submission(self) -> None:
+        repository = SQLiteControlPlaneRepository(":memory:")
+
+        run = Run(
+            run_id="run-1",
+            created_at=datetime(2026, 4, 30, 12, 0, 0),
+            trigger_type="manual",
+            requested_mode="discovery_only",
+            status=RunStatus.QUEUED,
+        )
+        job = Job(
+            job_id="job-1",
+            run_id="run-1",
+            job_kind="collect_source",
+            service_role="collector",
+        )
+        lease = Lease(
+            lease_id="lease-1",
+            job_id="job-1",
+            claimant_id="collector-a",
+            issued_at=datetime(2026, 4, 30, 12, 0, 0),
+            expires_at=datetime(2026, 4, 30, 12, 5, 0),
+        )
+        session = CollectorSession(
+            collector_instance_id="collector-a",
+            collector_version="1.0",
+            capability_tags=("vmware",),
+            max_concurrent_jobs=2,
+            current_active_load=1,
+            last_known_job_ids=("job-1",),
+            placement={"region": "lab"},
+            last_check_in_at=datetime(2026, 4, 30, 12, 0, 0),
+        )
+        submission = GraphSubmission(
+            submission_id="submission-1",
+            collector_instance_id="collector-a",
+            lease_id="lease-1",
+            payload={"nodes": []},
+            submitted_at=datetime(2026, 4, 30, 12, 1, 0),
+        )
+
+        repository.save_run(run)
+        repository.save_job(job)
+        repository.save_lease(lease)
+        repository.save_collector_session(session)
+        repository.save_graph_submission(submission)
+
+        self.assertEqual(repository.get_collector_session("collector-a"), session)
+        self.assertEqual(repository.get_graph_submission("submission-1"), submission)
+
+    def test_finalize_job_result_is_atomic_and_single_use(self) -> None:
+        repository = SQLiteControlPlaneRepository(":memory:")
+
+        run = Run(
+            run_id="run-1",
+            created_at=datetime(2026, 4, 30, 12, 0, 0),
+            trigger_type="manual",
+            requested_mode="discovery_only",
+            status=RunStatus.QUEUED,
+        )
+        job = Job(
+            job_id="job-1",
+            run_id="run-1",
+            job_kind="collect_source",
+            service_role="collector",
+            status=JobStatus.CLAIMED,
+        )
+        lease = Lease(
+            lease_id="lease-1",
+            job_id="job-1",
+            claimant_id="collector-a",
+            issued_at=datetime(2026, 4, 30, 12, 0, 0),
+            expires_at=datetime(2026, 4, 30, 12, 5, 0),
+        )
+        result = Result(
+            result_id="result-1",
+            job_id="job-1",
+            status="succeeded",
+            summary="collector finished",
+        )
+
+        repository.save_run(run)
+        repository.save_job(job)
+        repository.save_lease(lease)
+
+        self.assertTrue(
+            repository.finalize_job_result(
+                job=job,
+                lease_id="lease-1",
+                result=result,
+                next_status=JobStatus.SUCCEEDED,
+            )
+        )
+        self.assertEqual(repository.get_job("job-1").status, JobStatus.SUCCEEDED)
+        self.assertEqual(repository.get_result("result-1"), result)
+        self.assertIsNone(repository.get_lease("lease-1"))
+        self.assertFalse(
+            repository.finalize_job_result(
+                job=job,
+                lease_id="lease-1",
+                result=result,
+                next_status=JobStatus.SUCCEEDED,
+            )
+        )
 
 
 if __name__ == "__main__":
