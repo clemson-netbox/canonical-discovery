@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Bump the Poetry version in pyproject.toml."""
-from __future__ import annotations
 
 import argparse
+import pathlib
 import re
 import sys
-from pathlib import Path
-
 
 VERSION_PATTERN = re.compile(r'^(version\s*=\s*")(?P<version>\d+\.\d+\.\d+)("\s*)$')
 
@@ -40,7 +38,7 @@ def bump(version: str, part: str) -> str:
 
 def main() -> int:
     args = parse_args()
-    pyproject_path = Path(args.file)
+    pyproject_path = pathlib.Path(args.file)
 
     if not pyproject_path.exists():
         print(f"error: file not found: {pyproject_path}", file=sys.stderr)

@@ -23,6 +23,7 @@
 - Use typed branch prefixes such as `feature/`, `bugfix/`, `chore/`, `docs/`, `refactor/`, and `test/`.
 - Keep commits small and reviewable.
 - Build unit tests alongside code changes; do not treat tests as a later cleanup pass.
+- Run the relevant `lint -> test -> build` verification steps before committing when feasible.
 - Do not merge until CI, review gates, and runtime evidence checks are satisfied.
 - When runtime behavior changes, validate using API-retrieved artifacts and status rather than direct database inspection.
 

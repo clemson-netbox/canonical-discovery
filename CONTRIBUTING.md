@@ -65,7 +65,9 @@ Expected workflow:
 4. use a typed branch prefix such as `feature/`, `bugfix/`, `chore/`, `docs/`, `refactor/`, or `test/`
 5. keep changes focused and incrementally reviewable
 6. build unit tests alongside the code instead of deferring them
-7. open a PR early and keep a steady review/update cycle
+7. run the relevant local verification steps before commit when feasible, with
+   the default order `lint -> test -> build`
+8. open a PR early and keep a steady review/update cycle
 
 Normal implementation PRs should target `dev`.
 
@@ -85,6 +87,11 @@ Merge should not occur until all of the following are true:
   endpoints when the change affects runtime behavior
 
 Direct database inspection is not the normal validation path.
+
+Before committing, contributors should normally run the relevant lint and test
+commands for the affected scope. Before opening or updating a PR, contributors
+should normally rerun `lint -> test -> build` for the branch state when those
+checks exist.
 
 ## CI And Image Publishing
 
