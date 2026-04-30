@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 
 from canonical_discovery.control_plane import Job, JobStatus, Lease, Result, Run, RunStatus
@@ -15,10 +16,13 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
 
     def __init__(self, database_path: str) -> None:
         self._database_path = database_path
+        self._shared_connection = (
+            sqlite3.connect(self._database_path) if self._database_path == ":memory:" else None
+        )
         self._initialize_schema()
 
     def save_run(self, run: Run) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO runs (
@@ -59,7 +63,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
         )
 
     def save_job(self, job: Job) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO jobs (
@@ -109,7 +113,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
         )
 
     def save_lease(self, lease: Lease) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO leases (
@@ -152,7 +156,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
         )
 
     def save_result(self, result: Result) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO results (
@@ -195,7 +199,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
         )
 
     def _initialize_schema(self) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS runs (
@@ -237,10 +241,28 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
                 """
             )
 
-    def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self._database_path)
+    @contextmanager
+    def _connection(self):
+        if self._shared_connection is not None:
+            try:
+                yield self._shared_connection
+                self._shared_connection.commit()
+            except Exception:
+                self._shared_connection.rollback()
+                raise
+            return
+
+        connection = sqlite3.connect(self._database_path)
+        try:
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def _fetch_one(self, query: str, params: tuple[str, ...]) -> tuple | None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute(query, params).fetchone()
         return row
