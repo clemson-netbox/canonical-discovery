@@ -37,17 +37,25 @@ class AuthorityModelTests(unittest.TestCase):
                 confidence=20,
                 mode=AuthorityMode.FILL_IF_MISSING,
             ),
-            fields=(serial_field,),
         )
         scope = AuthorityScope(
             scope=NodeScope.PHYSICAL_DEVICE,
             categories=(category,),
+            fields=(serial_field,),
         )
         authority = AuthorityBlock(scopes=(scope,))
 
         self.assertEqual(authority.scopes, (scope,))
         self.assertEqual(scope.categories, (category,))
-        self.assertEqual(category.fields, (serial_field,))
+        self.assertEqual(scope.fields, (serial_field,))
+
+    def test_authority_rule_confidence_is_optional(self) -> None:
+        rule = AuthorityRule(
+            tier=AuthorityTier.AUTHORITATIVE,
+            mode=AuthorityMode.REPLACE,
+        )
+
+        self.assertIsNone(rule.confidence)
 
 
 class SourceBlockTests(unittest.TestCase):
@@ -86,11 +94,11 @@ class PolicyBlockTests(unittest.TestCase):
             name="campus-defaults",
             classifications=(
                 PolicyClassify(
-                    target="location",
+                    target=NodeScope.LOCATION,
                     attributes={"site_map": "regex/site_map"},
                 ),
                 PolicyClassify(
-                    target="physical_device",
+                    target=NodeScope.PHYSICAL_DEVICE,
                     attributes={"owner_group_map": "map/platform_owner"},
                 ),
             ),
@@ -98,6 +106,7 @@ class PolicyBlockTests(unittest.TestCase):
 
         self.assertEqual(policy.name, "campus-defaults")
         self.assertEqual(len(policy.classifications), 2)
+        self.assertEqual(policy.classifications[0].target, NodeScope.LOCATION)
         self.assertEqual(policy.classifications[0].attributes["site_map"], "regex/site_map")
 
 

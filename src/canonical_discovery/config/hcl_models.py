@@ -11,8 +11,8 @@ from canonical_discovery.core import AuthorityMode, AuthorityTier, Category, Nod
 @dataclass(frozen=True, slots=True)
 class AuthorityRule:
     tier: AuthorityTier
-    confidence: int | float
     mode: AuthorityMode
+    confidence: int | float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,13 +25,13 @@ class AuthorityField:
 class AuthorityCategory:
     category: Category
     rule: AuthorityRule
-    fields: tuple[AuthorityField, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class AuthorityScope:
     scope: NodeScope
     categories: tuple[AuthorityCategory, ...] = ()
+    fields: tuple[AuthorityField, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +49,7 @@ class SourceBlock:
 
 @dataclass(frozen=True, slots=True)
 class PolicyClassify:
-    target: str
+    target: NodeScope
     attributes: dict[str, Any] = field(default_factory=dict)
 
 
