@@ -32,12 +32,14 @@
 
 ## Verified Commands
 
+- Prefer `docker compose` over raw `docker` when using repo-defined services.
 - Build the devcontainer image with `docker compose build devcontainer`.
 - Install dev dependencies in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry install --with dev"`.
 - Lint in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff check ."`.
 - Format in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff format ."`.
 - Run tests in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && PYTHONPATH=src poetry run pytest"`.
 - Build the runtime image with `docker compose build app`.
+- For branch-local copied-source verification, prefer `docker compose run --rm app sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry install --with dev && poetry run ruff format --check . && poetry run ruff check . && PYTHONPATH=src poetry run pytest"`.
 - The devcontainer uses the root `docker-compose.yml` service named `devcontainer`.
 - The devcontainer runs `poetry install --with dev` on create.
 - Poetry virtualenvs are stored in the container volume mounted at `/opt/poetry-venvs`, not in the repo checkout.
