@@ -75,13 +75,16 @@ def parse_source_block(name: str, data: Any) -> SourceBlock:
 
 
 def parse_authority_block(data: Any) -> AuthorityBlock:
-    block = require_single_block(data, "authority block")
-    return AuthorityBlock(
-        scopes=tuple(
+    blocks = require_block_list(data, "authority block")
+    scopes: list[AuthorityScope] = []
+
+    for block in blocks:
+        scopes.extend(
             parse_authority_scope(name, body)
             for name, body in require_labeled_blocks(block, "scope")
-        ),
-    )
+        )
+
+    return AuthorityBlock(scopes=tuple(scopes))
 
 
 def parse_authority_scope(name: str, data: Any) -> AuthorityScope:
@@ -205,12 +208,10 @@ def require_mapping(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
-def require_single_block(value: Any, label: str) -> dict[str, Any]:
+def require_block_list(value: Any, label: str) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         raise HclConfigError(f"{label} must be a list")
-    if len(value) != 1:
-        raise HclConfigError(f"{label} must contain exactly one block")
-    return require_mapping(value[0], label)
+    return [require_mapping(item, label) for item in value]
 
 
 def require_labeled_blocks(mapping: dict[str, Any], key: str) -> list[tuple[str, Any]]:

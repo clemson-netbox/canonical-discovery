@@ -164,6 +164,40 @@ class HclParserTests(unittest.TestCase):
                 }
             )
 
+    def test_parse_hcl_document_merges_repeated_authority_blocks(self) -> None:
+        loaded = hcl2.load(
+            StringIO(
+                'source "vmware" {\n'
+                '  api_type = "vmware"\n'
+                "  authority {\n"
+                '    scope "virtual_machine" {\n'
+                '      category "identity" {\n'
+                '        tier = "authoritative"\n'
+                '        mode = "replace"\n'
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "  authority {\n"
+                '    scope "physical_device" {\n'
+                '      category "hardware_inventory" {\n'
+                '        tier = "supplemental"\n'
+                '        mode = "fill_if_missing"\n'
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+            )
+        )
+
+        document = parse_hcl_document(loaded)
+        source = document.sources[0]
+        scopes = source.authority.scopes  # type: ignore[union-attr]
+
+        self.assertEqual(
+            tuple(scope.scope for scope in scopes),
+            (NodeScope.VIRTUAL_MACHINE, NodeScope.PHYSICAL_DEVICE),
+        )
+
     def test_parse_hcl_document_rejects_non_list_sections(self) -> None:
         with self.assertRaisesRegex(HclConfigError, "source blocks must be a list"):
             parse_hcl_document({"source": {}})
