@@ -71,6 +71,8 @@ Code should follow those documents, not invent a parallel architecture.
   - initial implementation companion and milestone framing
 - `docs/development/HUMAN_IN_THE_LOOP.md`
   - human/agent collaboration model for this repository
+- `docs/development/BRANCHING_WORKFLOW.md`
+  - branch roles, naming, and PR target workflow
 - `docs/development/COLLECTOR_WORKFLOW.md`
   - collector implementation playbook
 - `docs/development/PROJECTOR_WORKFLOW.md`

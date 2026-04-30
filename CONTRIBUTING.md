@@ -60,10 +60,17 @@ Development should be issue-first.
 Expected workflow:
 
 1. start from a GitHub issue
-2. use a dedicated clean branch and isolated workspace or worktree for that issue
-3. keep changes focused and incrementally reviewable
-4. build unit tests alongside the code instead of deferring them
-5. open a PR early and keep a steady review/update cycle
+2. branch from `dev`, not `main`, for normal issue work
+3. use a dedicated clean branch and isolated workspace or worktree for that issue
+4. use a typed branch prefix such as `feature/`, `bugfix/`, `chore/`, `docs/`, `refactor/`, or `test/`
+5. keep changes focused and incrementally reviewable
+6. build unit tests alongside the code instead of deferring them
+7. open a PR early and keep a steady review/update cycle
+
+Normal implementation PRs should target `dev`.
+
+`main` should remain the stable branch and receive reviewed integration work
+rather than serving as the default base for issue branches.
 
 PRs should prefer small, coherent commits over large batch drops.
 
@@ -89,12 +96,16 @@ Current policy:
 - commits should trigger CI validation
 - commits should trigger runtime image builds
 - PR builds should publish a PR-tagged image such as `:pr1234`
+- the `dev` integration branch should publish a `:dev` image for shared validation
 - branch builds should publish a branch-tagged image such as `:dev` or
   `:release-1.1`
 - `main` should also publish `:latest`
 
 These tags should represent the current state of the work under review so the
 result can be exercised before merge.
+
+When validating the integrated development environment, prefer the published
+GHCR branch image over ad hoc local rebuilds when practical.
 
 ## Testing Philosophy
 

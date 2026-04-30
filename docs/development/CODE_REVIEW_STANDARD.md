@@ -18,6 +18,7 @@ Review should focus first on:
 Good reviewable changes are usually:
 
 - issue-scoped
+- based on a dedicated branch from `dev`
 - small to moderate in size
 - accompanied by tests when behavior changes
 - accompanied by RFC or doc updates when contracts change

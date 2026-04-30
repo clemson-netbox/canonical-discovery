@@ -55,6 +55,7 @@ Agent work should be easy for a human reviewer to inspect.
 That implies:
 
 - issue-first changes
+- issue branches from `dev` for normal implementation work
 - dedicated branch or worktree per issue
 - small commits
 - linked docs/RFC updates when contracts change
