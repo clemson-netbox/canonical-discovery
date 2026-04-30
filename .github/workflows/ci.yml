@@ -26,5 +26,8 @@ jobs:
       - name: Run Ruff format check
         run: docker compose run --rm devcontainer poetry run ruff format --check .
 
+      - name: Run pytest suite
+        run: docker compose run --rm devcontainer sh -lc "PYTHONPATH=src poetry run pytest"
+
       - name: Build runtime image
         run: docker compose build app

@@ -10,6 +10,7 @@ package-mode = false
 python = "^3.12"
 
 [tool.poetry.group.dev.dependencies]
+pytest = ">=8,<9"
 ruff = ">=0.6,<1.0"
 
 [tool.ruff]
@@ -22,6 +23,9 @@ select = ["B", "E", "F", "I", "UP"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["poetry-core>=1.9.0"]
