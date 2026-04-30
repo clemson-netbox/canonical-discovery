@@ -31,10 +31,10 @@
 ## Verified Commands
 
 - Build the devcontainer image with `docker compose build devcontainer`.
-- Install dev dependencies in the container with `docker compose run --rm devcontainer poetry install --with dev`.
-- Lint in the container with `docker compose run --rm devcontainer poetry run ruff check .`.
-- Format in the container with `docker compose run --rm devcontainer poetry run ruff format .`.
-- Run tests in the container with `docker compose run --rm devcontainer sh -lc "PYTHONPATH=src poetry run pytest"`.
+- Install dev dependencies in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry install --with dev"`.
+- Lint in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff check ."`.
+- Format in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff format ."`.
+- Run tests in the container with `docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && PYTHONPATH=src poetry run pytest"`.
 - Build the runtime image with `docker compose build app`.
 - The devcontainer uses the root `docker-compose.yml` service named `devcontainer`.
 - The devcontainer runs `poetry install --with dev` on create.

@@ -18,16 +18,16 @@ jobs:
         run: docker compose build devcontainer
 
       - name: Install dev dependencies in container
-        run: docker compose run --rm devcontainer poetry install --with dev
+        run: docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry install --with dev"
 
       - name: Run Ruff lint checks
-        run: docker compose run --rm devcontainer poetry run ruff check .
+        run: docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff check ."
 
       - name: Run Ruff format check
-        run: docker compose run --rm devcontainer poetry run ruff format --check .
+        run: docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && poetry run ruff format --check ."
 
       - name: Run pytest suite
-        run: docker compose run --rm devcontainer sh -lc "PYTHONPATH=src poetry run pytest"
+        run: docker compose run --rm devcontainer sh -lc "export PATH=/opt/poetry/bin:$PATH && PYTHONPATH=src poetry run pytest"
 
       - name: Build runtime image
         run: docker compose build app

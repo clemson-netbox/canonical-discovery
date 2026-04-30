@@ -6,7 +6,7 @@
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
-  "postCreateCommand": "poetry install --with dev",
+  "postCreateCommand": "sh -lc 'export PATH=/opt/poetry/bin:$PATH && poetry install --with dev'",
   "customizations": {
     "vscode": {
       "extensions": [
