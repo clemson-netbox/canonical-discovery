@@ -20,6 +20,7 @@ class GraphInvariantValidationTests(unittest.TestCase):
             nodes=(
                 Node(key="device-1", scope=NodeScope.PHYSICAL_DEVICE),
                 Node(key="component-1", scope=NodeScope.DEVICE_COMPONENT),
+                Node(key="link-1", scope=NodeScope.LINK),
                 Node(key="port-a", scope=NodeScope.PORT),
                 Node(key="port-b", scope=NodeScope.PORT),
                 Node(key="os-1", scope=NodeScope.OS_INSTANCE),
@@ -35,7 +36,13 @@ class GraphInvariantValidationTests(unittest.TestCase):
                 Edge(
                     key="edge-link",
                     edge_type=EdgeType.CONNECTED_TO,
-                    source_key="port-a",
+                    source_key="link-1",
+                    target_key="port-a",
+                ),
+                Edge(
+                    key="edge-link-peer",
+                    edge_type=EdgeType.CONNECTED_TO,
+                    source_key="link-1",
                     target_key="port-b",
                 ),
                 Edge(
@@ -81,6 +88,27 @@ class GraphInvariantValidationTests(unittest.TestCase):
         self.assertEqual(
             validate_graph_invariants(graph),
             ["os_instance 'os-1' must have exactly one hosts edge, found 2"],
+        )
+
+    def test_os_instance_host_must_be_compute_scope(self) -> None:
+        graph = GraphArtifact(
+            nodes=(
+                Node(key="port-1", scope=NodeScope.PORT),
+                Node(key="os-1", scope=NodeScope.OS_INSTANCE),
+            ),
+            edges=(
+                Edge(
+                    key="edge-hosts",
+                    edge_type=EdgeType.HOSTS,
+                    source_key="port-1",
+                    target_key="os-1",
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            validate_graph_invariants(graph),
+            ["os_instance 'os-1' must be hosted by a compute object, not 'port'"],
         )
 
     def test_connected_to_requires_port_nodes(self) -> None:
@@ -168,6 +196,55 @@ class GraphInvariantValidationTests(unittest.TestCase):
         self.assertEqual(
             validate_graph_invariants(graph),
             ["edge 'edge-missing' references unknown target 'port-2'"],
+        )
+
+    def test_link_requires_exactly_two_port_endpoints(self) -> None:
+        graph = GraphArtifact(
+            nodes=(
+                Node(key="link-1", scope=NodeScope.LINK),
+                Node(key="port-1", scope=NodeScope.PORT),
+            ),
+            edges=(
+                Edge(
+                    key="edge-link",
+                    edge_type=EdgeType.CONNECTED_TO,
+                    source_key="link-1",
+                    target_key="port-1",
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            validate_graph_invariants(graph),
+            ["link 'link-1' must connect exactly two port endpoints, found 1"],
+        )
+
+    def test_link_requires_port_targets_only(self) -> None:
+        graph = GraphArtifact(
+            nodes=(
+                Node(key="link-1", scope=NodeScope.LINK),
+                Node(key="port-1", scope=NodeScope.PORT),
+                Node(key="device-1", scope=NodeScope.PHYSICAL_DEVICE),
+            ),
+            edges=(
+                Edge(
+                    key="edge-link-1",
+                    edge_type=EdgeType.CONNECTED_TO,
+                    source_key="link-1",
+                    target_key="port-1",
+                ),
+                Edge(
+                    key="edge-link-2",
+                    edge_type=EdgeType.CONNECTED_TO,
+                    source_key="link-1",
+                    target_key="device-1",
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            validate_graph_invariants(graph),
+            ["link 'link-1' must connect only port endpoints"],
         )
 
 
