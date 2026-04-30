@@ -37,6 +37,8 @@
 - The devcontainer runs `poetry install --with dev` on create.
 - Poetry virtualenvs are stored in the container volume mounted at `/opt/poetry-venvs`, not in the repo checkout.
 - The `devcontainer` service uses a bind mount for live repo edits. The `app` runtime image copies the repo into `/workspace` at build time and does not use the dev bind mount.
+- The `app` service defaults to the published GHCR image `ghcr.io/clemson-netbox/canonical-discovery:${CANONICAL_DISCOVERY_IMAGE_TAG:-dev}` and can be retagged via environment variables in `.env`.
+- The `devcontainer` service still builds locally by default, but its image name/tag are also configurable via environment variables.
 - GitHub Actions should validate lint/build on commits and publish runtime images tagged by PR number or branch name, with `latest` for `main`.
 - Prefer the published GHCR branch image such as `ghcr.io/clemson-netbox/canonical-discovery:dev` when validating the integrated development environment.
 - There is still no verified root test or typecheck command until those tools are added to config.

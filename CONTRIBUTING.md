@@ -107,6 +107,11 @@ result can be exercised before merge.
 When validating the integrated development environment, prefer the published
 GHCR branch image over ad hoc local rebuilds when practical.
 
+The root `docker-compose.yml` defaults the `app` service to the published GHCR
+runtime image with an environment-configurable tag, so branch validation can use
+images such as `:dev`, `:pr1234`, or release tags without rewriting the compose
+file.
+
 ## Testing Philosophy
 
 The first code milestones should prioritize:
