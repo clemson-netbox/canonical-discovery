@@ -242,6 +242,52 @@ class CollectorApiTests(unittest.TestCase):
         result_id = response.json()["result_id"]
         self.assertEqual(self.repository.get_result(result_id).summary, "done")
         self.assertEqual(self.repository.get_job("job-1").status, JobStatus.SUCCEEDED)
+        self.assertIsNone(self.repository.get_lease(claim_response.json()["jobs"][0]["lease_id"]))
+
+    def test_heartbeat_rejects_completed_job_lease(self) -> None:
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-1",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+        claim_response = self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-1",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+        lease_id = claim_response.json()["jobs"][0]["lease_id"]
+        self.client.post(
+            "/collectors/results",
+            json={
+                "collector_instance_id": "collector-1",
+                "lease_id": lease_id,
+                "job_id": "job-1",
+                "status": "succeeded",
+                "summary": "done",
+            },
+        )
+
+        response = self.client.post(
+            "/collectors/heartbeat",
+            json={
+                "collector_instance_id": "collector-1",
+                "lease_id": lease_id,
+                "current_execution_status": "running",
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_result_submission_rejects_invalid_status_before_persisting_result(self) -> None:
         self.client.post(
@@ -398,6 +444,51 @@ class CollectorApiTests(unittest.TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
         self.assertEqual(first.json()["submission_id"], second.json()["submission_id"])
+
+    def test_graph_submission_rejects_completed_job_lease(self) -> None:
+        self.client.post(
+            "/collectors/check-in",
+            json={
+                "collector_instance_id": "collector-1",
+                "collector_version": "1.0",
+                "capability_tags": ["vmware"],
+                "max_concurrent_jobs": 2,
+                "current_active_load": 0,
+                "last_known_job_ids": [],
+                "placement": {},
+            },
+        )
+        claim_response = self.client.post(
+            "/collectors/claim-work",
+            json={
+                "collector_instance_id": "collector-1",
+                "current_load": 0,
+                "available_capacity": 1,
+                "capability_tags": ["vmware"],
+            },
+        )
+        lease_id = claim_response.json()["jobs"][0]["lease_id"]
+        self.client.post(
+            "/collectors/results",
+            json={
+                "collector_instance_id": "collector-1",
+                "lease_id": lease_id,
+                "job_id": "job-1",
+                "status": "succeeded",
+                "summary": "done",
+            },
+        )
+
+        response = self.client.post(
+            "/collectors/graph-submissions",
+            json={
+                "collector_instance_id": "collector-1",
+                "lease_id": lease_id,
+                "payload": {"nodes": []},
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_result_submission_rejects_mismatched_lease(self) -> None:
         self.client.post(

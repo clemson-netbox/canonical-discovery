@@ -14,7 +14,6 @@ from pydantic import BaseModel, Field
 from canonical_discovery.control_plane import (
     CollectorSession,
     GraphSubmission,
-    Job,
     JobStatus,
     Lease,
     Result,
@@ -181,6 +180,9 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
             raise HTTPException(status_code=403, detail="lease claimant mismatch")
         if lease.expires_at <= datetime.now(UTC):
             raise HTTPException(status_code=409, detail="lease expired")
+        job = repository.get_job(lease.job_id)
+        if job is None or job.status not in {JobStatus.CLAIMED, JobStatus.RUNNING}:
+            raise HTTPException(status_code=409, detail="job is not active for heartbeat")
 
         updated_lease = Lease(
             lease_id=lease.lease_id,
@@ -207,6 +209,9 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
             raise HTTPException(status_code=403, detail="lease claimant mismatch")
         if lease.expires_at <= datetime.now(UTC):
             raise HTTPException(status_code=409, detail="lease expired")
+        job = repository.get_job(lease.job_id)
+        if job is None or job.status not in {JobStatus.CLAIMED, JobStatus.RUNNING}:
+            raise HTTPException(status_code=409, detail="job is not active for graph submission")
 
         submission = repository.get_graph_submission_for_lease(request.lease_id) or GraphSubmission(
             submission_id=request.lease_id,
@@ -257,19 +262,16 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
             metrics=dict(request.metrics),
             artifact_refs=tuple(request.artifact_refs),
         )
-        repository.save_result(result)
-        repository.save_job(
-            Job(
-                job_id=job.job_id,
-                run_id=job.run_id,
-                job_kind=job.job_kind,
-                service_role=job.service_role,
-                required_tags=job.required_tags,
-                priority=job.priority,
-                status=next_status,
-                attempt_count=job.attempt_count,
-            )
+        finalized = repository.finalize_job_result(
+            job=job,
+            lease_id=request.lease_id,
+            result=result,
+            next_status=next_status,
         )
+        if not finalized:
+            raise HTTPException(
+                status_code=409, detail="job result could not be finalized atomically"
+            )
 
         return ResultSubmissionResponse(result_id=result.result_id, accepted=True)
 

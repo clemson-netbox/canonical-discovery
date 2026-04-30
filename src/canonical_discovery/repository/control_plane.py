@@ -92,3 +92,14 @@ class ControlPlaneRepository(ABC):
     @abstractmethod
     def get_graph_submission_for_lease(self, lease_id: str) -> GraphSubmission | None:
         raise NotImplementedError
+
+    @abstractmethod
+    def finalize_job_result(
+        self,
+        *,
+        job: Job,
+        lease_id: str,
+        result: Result,
+        next_status: JobStatus,
+    ) -> bool:
+        raise NotImplementedError

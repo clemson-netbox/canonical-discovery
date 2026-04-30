@@ -187,6 +187,61 @@ class SQLiteControlPlaneRepositoryTests(unittest.TestCase):
         self.assertEqual(repository.get_collector_session("collector-a"), session)
         self.assertEqual(repository.get_graph_submission("submission-1"), submission)
 
+    def test_finalize_job_result_is_atomic_and_single_use(self) -> None:
+        repository = SQLiteControlPlaneRepository(":memory:")
+
+        run = Run(
+            run_id="run-1",
+            created_at=datetime(2026, 4, 30, 12, 0, 0),
+            trigger_type="manual",
+            requested_mode="discovery_only",
+            status=RunStatus.QUEUED,
+        )
+        job = Job(
+            job_id="job-1",
+            run_id="run-1",
+            job_kind="collect_source",
+            service_role="collector",
+            status=JobStatus.CLAIMED,
+        )
+        lease = Lease(
+            lease_id="lease-1",
+            job_id="job-1",
+            claimant_id="collector-a",
+            issued_at=datetime(2026, 4, 30, 12, 0, 0),
+            expires_at=datetime(2026, 4, 30, 12, 5, 0),
+        )
+        result = Result(
+            result_id="result-1",
+            job_id="job-1",
+            status="succeeded",
+            summary="collector finished",
+        )
+
+        repository.save_run(run)
+        repository.save_job(job)
+        repository.save_lease(lease)
+
+        self.assertTrue(
+            repository.finalize_job_result(
+                job=job,
+                lease_id="lease-1",
+                result=result,
+                next_status=JobStatus.SUCCEEDED,
+            )
+        )
+        self.assertEqual(repository.get_job("job-1").status, JobStatus.SUCCEEDED)
+        self.assertEqual(repository.get_result("result-1"), result)
+        self.assertIsNone(repository.get_lease("lease-1"))
+        self.assertFalse(
+            repository.finalize_job_result(
+                job=job,
+                lease_id="lease-1",
+                result=result,
+                next_status=JobStatus.SUCCEEDED,
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

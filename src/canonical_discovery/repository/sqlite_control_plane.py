@@ -424,6 +424,57 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             submitted_at=datetime.fromisoformat(row[4]),
         )
 
+    def finalize_job_result(
+        self,
+        *,
+        job: Job,
+        lease_id: str,
+        result: Result,
+        next_status: JobStatus,
+    ) -> bool:
+        with self._connection() as connection:
+            lease_row = connection.execute(
+                "SELECT lease_id FROM leases WHERE lease_id = ? AND job_id = ?",
+                (lease_id, job.job_id),
+            ).fetchone()
+            if lease_row is None:
+                return False
+
+            existing_result = connection.execute(
+                "SELECT result_id FROM results WHERE job_id = ?",
+                (job.job_id,),
+            ).fetchone()
+            if existing_result is not None:
+                return False
+
+            connection.execute(
+                """
+                INSERT INTO results (
+                    result_id,
+                    job_id,
+                    status,
+                    summary,
+                    metrics,
+                    artifact_refs
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    result.result_id,
+                    result.job_id,
+                    result.status,
+                    result.summary,
+                    json.dumps(result.metrics),
+                    json.dumps(list(result.artifact_refs)),
+                ),
+            )
+            connection.execute(
+                "UPDATE jobs SET status = ? WHERE job_id = ?",
+                (next_status.value, job.job_id),
+            )
+            connection.execute("DELETE FROM leases WHERE lease_id = ?", (lease_id,))
+
+        return True
+
     def _initialize_schema(self) -> None:
         with self._connection() as connection:
             connection.executescript(
