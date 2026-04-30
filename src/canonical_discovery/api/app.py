@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -271,7 +272,9 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
 
 
 DEFAULT_DB_PATH = os.environ.get(
-    "CANONICAL_DISCOVERY_DB_PATH", "/var/lib/canonical-discovery/control-plane.db"
+    "CANONICAL_DISCOVERY_DB_PATH", "/workspace/.runtime/control-plane.db"
 )
+
+Path(DEFAULT_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
 app = create_app(SQLiteControlPlaneRepository(DEFAULT_DB_PATH))
