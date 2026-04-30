@@ -5,6 +5,7 @@
 - Start with `README.md`, `CONTRIBUTING.md`, `docs/rfcs/0001-canonical-graph-authority-and-hcl.md`, `docs/rfcs/0002-operational-plane-and-deployment-topology.md`, `docs/rfcs/0003-1x-carry-over-concepts.md`, `docs/rfcs/0004-netbox-projector-carry-over-concepts.md`, `docs/rfcs/0005-run-job-task-and-lease-state-model.md`, `docs/rfcs/0006-collector-api-contract.md`, and `docs/rfcs/0007-projection-plan-and-result-artifact-contract.md`.
 - Use `docs/architecture/ARCHITECTURE.md` for a fast system-level summary, but treat the RFCs as authoritative.
 - Treat `docs/rfcs/` as normative architecture. `docs/architecture/` is informative. `docs/ROADMAP.md` is planning guidance only, not a compatibility promise.
+- Use `docs/development/` playbooks for repeated implementation, validation, and review workflows.
 
 ## Current Repo State
 
@@ -12,6 +13,16 @@
 - Python is pinned to `^3.12`. Use Poetry inside the devcontainer for orchestration and Ruff for linting/formatting.
 - `tool.poetry.package-mode = false` right now. Do not assume there is already an installable package or entrypoint.
 - Do not run `poetry` on the host machine for normal repo work. Keep Poetry environments and installs inside the devcontainer flow.
+
+## Delivery Workflow
+
+- This repository is human-in-the-loop: agents assist, but humans remain the final authority for review, merge, and acceptance.
+- Work issue-first.
+- Use a dedicated clean branch and isolated workspace or worktree per issue.
+- Keep commits small and reviewable.
+- Build unit tests alongside code changes; do not treat tests as a later cleanup pass.
+- Do not merge until CI, review gates, and runtime evidence checks are satisfied.
+- When runtime behavior changes, validate using API-retrieved artifacts and status rather than direct database inspection.
 
 ## Verified Commands
 
@@ -24,6 +35,7 @@
 - The devcontainer runs `poetry install --with dev` on create.
 - Poetry virtualenvs are stored in the container volume mounted at `/opt/poetry-venvs`, not in the repo checkout.
 - The `devcontainer` service uses a bind mount for live repo edits. The `app` runtime image copies the repo into `/workspace` at build time and does not use the dev bind mount.
+- GitHub Actions should validate lint/build on commits and publish runtime images tagged by PR number or branch name, with `latest` for `main`.
 - There is still no verified root test or typecheck command until those tools are added to config.
 
 ## Architecture Guardrails
@@ -38,6 +50,8 @@
 - Projection planning belongs in the API/core. Projection execution should be deployable separately by default, even if early artifact projection runs in-process.
 - For the NetBox projector, preserve execution-side patterns like a `pynetbox` wrapper, Redis-backed lookup caching, idempotent ensure-style writes, and dependency-aware execution ordering, but keep them inside the projector boundary.
 - Projection planning should emit durable plan artifacts, and projection execution should emit durable result artifacts rather than relying on ad hoc payloads.
+- Runtime artifacts should be retrievable through the API during development and validation; do not assume direct database inspection is the normal debugging path.
+- Preserve strong debug instrumentation at each stage so collector activity, authority resolution, projection planning, and projection execution can be explained from API-visible state.
 - Source-local assembly is allowed inside adapters, but that private assembly state must not become a public schema consumed elsewhere.
 - Do not hardcode source precedence or authority decisions in adapter code. Authority belongs in declarative HCL policy.
 - Keep the core projection-neutral. Projectors consume resolved canonical truth downstream; adapters must not emit target-specific payloads.
@@ -46,7 +60,7 @@
 
 - Prefer small foundational changes and minimal dependencies.
 - The current docs explicitly bias early implementation toward standard library `dataclasses`, not framework-driven architecture.
-- If you add code before more guidance exists, stay aligned with the documented build order: core enums/literals, dataclass models, graph invariant validation, authority resolution, artifact/JSON projection, then minimal HCL parsing.
+- If you add code before more guidance exists, stay aligned with the documented build order: core enums/literals, dataclass models, graph invariant validation, minimal run/job/lease control-plane types, repository and API queue/claim substrate, authority resolution, projection artifacts and artifact/JSON projection, then minimal HCL parsing.
 - Avoid building UI, scheduler, persistence, or broader control-plane/runtime concerns before the canonical core is stable.
 
 ## RFC-First Changes

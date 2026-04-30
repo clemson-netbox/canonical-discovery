@@ -69,6 +69,16 @@ Code should follow those documents, not invent a parallel architecture.
   - informative system-level architecture summary across the RFC set
 - `docs/architecture/IMPLEMENTATION_OUTLINE.md`
   - initial implementation companion and milestone framing
+- `docs/development/HUMAN_IN_THE_LOOP.md`
+  - human/agent collaboration model for this repository
+- `docs/development/COLLECTOR_WORKFLOW.md`
+  - collector implementation playbook
+- `docs/development/PROJECTOR_WORKFLOW.md`
+  - projector implementation playbook
+- `docs/development/RUNTIME_VALIDATION.md`
+  - API-first runtime validation playbook
+- `docs/development/CODE_REVIEW_STANDARD.md`
+  - review and merge-readiness playbook
 - `docs/ROADMAP.md`
   - milestone roadmap
 - `CONTRIBUTING.md`

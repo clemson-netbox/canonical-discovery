@@ -88,20 +88,20 @@ Keep boundaries clear between:
 1. core enums / literal sets for scopes, categories, tiers, modes
 2. dataclass models for node, edge, claim, graph artifact
 3. graph invariant validation helpers
-4. authority resolution engine
-5. projection plan and result artifact models
-6. artifact/JSON projection planning and execution
-7. minimal HCL parsing for source authority and projection declarations
-8. control-plane dataclasses for run, job, task, lease, heartbeat, and result
-9. repository abstractions for canonical and control-plane persistence
-10. minimal API application boundary around ingestion, authority resolution,
-    queueing, and projection planning
-11. collector API contract implementation for check-in, claim, heartbeat, graph
-    submission, and result submission
-12. minimal worker loop that creates runs/jobs through the API
+4. control-plane dataclasses for run, job, task, lease, heartbeat, and result
+5. repository abstractions for canonical and control-plane persistence
+6. minimal API application boundary around ingestion, queueing, and claiming
+7. collector API contract implementation for check-in, claim, heartbeat, graph
+   submission, and result submission
+8. minimal worker loop that creates runs/jobs through the API
+9. authority resolution engine
+10. projection plan and result artifact models
+11. artifact/JSON projection planning and execution
+12. minimal HCL parsing for source authority and projection declarations
 
-This order is intentionally biased toward proving canonical and projection
-contracts before building broader runtime orchestration.
+This order is intentionally biased toward proving canonical contracts first,
+then introducing the smallest shared operational substrate before building
+ingest, collector, and projection flows on top of it.
 
 ## Source Adapter Expectations
 

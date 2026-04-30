@@ -81,6 +81,7 @@ It should own:
 - persistence through repository abstractions
 - projection planning
 - job state transitions
+- runtime artifact retrieval for operators and development validation
 - exposure of data for the UI and operators
 
 It should not own:
@@ -139,6 +140,22 @@ control path.
 
 For `v0`, API-mediated behavior is preferred because it keeps business rules in
 one place even if it is less optimized.
+
+## 9.1 Validation And Debugging Principle
+
+Runtime validation and debugging should be API-first.
+
+That means:
+
+- runtime artifacts should be retrievable through the API during development
+  and validation
+- operators and developers should not need direct database access to inspect run
+  state, graph artifacts, projection plans, or projection results
+- each stage should emit enough structured debug instrumentation to explain what
+  happened and why
+
+This principle applies to collector submissions, authority resolution,
+projection planning, and projection execution.
 
 ## 10. Collector Service
 

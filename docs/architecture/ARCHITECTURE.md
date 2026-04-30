@@ -58,6 +58,7 @@ It owns:
 - authority resolution
 - projection planning
 - run and job state transitions
+- runtime artifact retrieval for development and operator validation
 - data access for the UI
 
 ### Worker
@@ -175,6 +176,13 @@ Two artifact families are important:
 Projection planning should emit durable plan artifacts.
 
 Projection execution should emit durable result artifacts.
+
+Development and validation flows should retrieve runtime artifacts through the
+API rather than relying on direct database inspection.
+
+Debug instrumentation is expected at each stage so artifact inspection can
+explain collector behavior, resolution outcomes, plan generation, and execution
+results.
 
 ## Persistence Model
 

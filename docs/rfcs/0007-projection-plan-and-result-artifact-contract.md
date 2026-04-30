@@ -182,6 +182,10 @@ The operational model should support:
 This allows run history and troubleshooting without embedding full artifacts in
 every status row.
 
+Artifact retrieval should be API-accessible so development and validation flows
+can inspect plan and result artifacts without depending on direct database or
+storage access.
+
 ## 15. Relationship To Canonical Artifacts
 
 Projection artifacts are downstream from canonical graph artifacts.
@@ -207,4 +211,6 @@ stable.
 - projection execution emits durable result artifacts
 - execution units are planner-defined and executor-consumed
 - dry-run is a first-class artifact mode
+- projection artifacts should be retrievable through the API for validation and
+  debugging
 - projection artifacts remain downstream operational records, not canonical truth
