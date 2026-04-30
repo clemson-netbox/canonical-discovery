@@ -56,7 +56,7 @@ def main() -> int:
 
         current_version = match.group("version")
         next_version = bump(current_version, args.part)
-        updated_lines.append(f'{match.group(1)}{next_version}{match.group(3)}')
+        updated_lines.append(f"{match.group(1)}{next_version}{match.group(3)}")
 
     if current_version is None:
         print("error: could not find a version assignment in pyproject.toml", file=sys.stderr)
