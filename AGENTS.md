@@ -19,6 +19,8 @@
 - This repository is human-in-the-loop: agents assist, but humans remain the final authority for review, merge, and acceptance.
 - Work issue-first.
 - Use a dedicated clean branch and isolated workspace or worktree per issue.
+- Start normal implementation branches from `dev`, not `main`.
+- Use typed branch prefixes such as `feature/`, `bugfix/`, `chore/`, `docs/`, `refactor/`, and `test/`.
 - Keep commits small and reviewable.
 - Build unit tests alongside code changes; do not treat tests as a later cleanup pass.
 - Do not merge until CI, review gates, and runtime evidence checks are satisfied.
@@ -36,6 +38,7 @@
 - Poetry virtualenvs are stored in the container volume mounted at `/opt/poetry-venvs`, not in the repo checkout.
 - The `devcontainer` service uses a bind mount for live repo edits. The `app` runtime image copies the repo into `/workspace` at build time and does not use the dev bind mount.
 - GitHub Actions should validate lint/build on commits and publish runtime images tagged by PR number or branch name, with `latest` for `main`.
+- Prefer the published GHCR branch image such as `ghcr.io/clemson-netbox/canonical-discovery:dev` when validating the integrated development environment.
 - There is still no verified root test or typecheck command until those tools are added to config.
 
 ## Architecture Guardrails
