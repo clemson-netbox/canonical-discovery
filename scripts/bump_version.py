@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Bump the Poetry version in pyproject.toml."""
-
 from __future__ import annotations
 
 import argparse
