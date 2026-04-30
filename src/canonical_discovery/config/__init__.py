@@ -13,6 +13,7 @@ from canonical_discovery.config.hcl_models import (
     ProjectionScope,
     SourceBlock,
 )
+from canonical_discovery.config.parser import HclConfigError, parse_hcl_document
 
 __all__ = [
     "AuthorityBlock",
@@ -20,7 +21,9 @@ __all__ = [
     "AuthorityField",
     "AuthorityRule",
     "AuthorityScope",
+    "HclConfigError",
     "HclDocument",
+    "parse_hcl_document",
     "PolicyBlock",
     "PolicyClassify",
     "ProjectionBlock",
