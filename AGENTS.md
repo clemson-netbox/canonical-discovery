@@ -25,6 +25,8 @@
 - Build unit tests alongside code changes; do not treat tests as a later cleanup pass.
 - Run the relevant `lint -> test -> build` verification steps before committing when feasible.
 - For Python changes, treat Ruff verification as both `ruff format --check` and `ruff check`; repair files locally before commit if either fails.
+- Publish review findings or no-findings results back to the PR thread when a review is requested.
+- When there are findings, publish one PR comment per finding and include relevant code locations, using GitHub code references when possible.
 - Do not merge until CI, review gates, and runtime evidence checks are satisfied.
 - When runtime behavior changes, validate using API-retrieved artifacts and status rather than direct database inspection.
 
