@@ -118,7 +118,7 @@ def parse_policy_classify(name: str, data: Any) -> PolicyClassify:
     block = require_mapping(data, "policy classify")
     return PolicyClassify(
         target=parse_node_scope(name),
-        attributes=require_mapping(block.get("attributes", {}), "policy classify attributes"),
+        attributes=block,
     )
 
 

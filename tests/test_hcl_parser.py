@@ -40,7 +40,7 @@ class HclParserTests(unittest.TestCase):
                     "campus-defaults": {
                         "classify": {
                             "location": {
-                                "attributes": {"site_map": "regex/site_map"},
+                                "site_map": "regex/site_map",
                             }
                         }
                     }
@@ -74,6 +74,7 @@ class HclParserTests(unittest.TestCase):
         self.assertEqual(authority_field.name, "serial")
         self.assertEqual(authority_field.rule.confidence, None)
         self.assertEqual(policy.classifications[0].target, NodeScope.LOCATION)
+        self.assertEqual(policy.classifications[0].attributes["site_map"], "regex/site_map")
         self.assertEqual(projection.include_scopes, (NodeScope.PHYSICAL_DEVICE, NodeScope.PORT))
         self.assertEqual(projection.scopes[1].scope, NodeScope.PORT)
 
