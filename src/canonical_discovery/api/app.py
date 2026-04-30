@@ -39,13 +39,17 @@ def resolve_log_level(level_name: str | None) -> int:
 def configure_logging() -> logging.Logger:
     level_name = os.environ.get("LOG_LEVEL", DEFAULT_LOG_LEVEL)
     level = resolve_log_level(level_name)
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-        force=True,
-    )
+
+    root_logger = logging.getLogger()
     logger = logging.getLogger("canonical_discovery.api")
     logger.setLevel(level)
+
+    if not root_logger.handlers and not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+        logger.addHandler(handler)
+        logger.propagate = False
+
     return logger
 
 
