@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import tempfile
 import unittest
 from datetime import datetime
@@ -66,6 +67,64 @@ class SQLiteControlPlaneRepositoryTests(unittest.TestCase):
             self.assertIsNone(repository.get_job("missing"))
             self.assertIsNone(repository.get_lease("missing"))
             self.assertIsNone(repository.get_result("missing"))
+
+    def test_in_memory_database_supports_round_trip(self) -> None:
+        repository = SQLiteControlPlaneRepository(":memory:")
+
+        run = Run(
+            run_id="run-1",
+            created_at=datetime(2026, 4, 30, 12, 0, 0),
+            trigger_type="manual",
+            requested_mode="discovery_only",
+            status=RunStatus.QUEUED,
+        )
+
+        repository.save_run(run)
+
+        self.assertEqual(repository.get_run("run-1"), run)
+
+    def test_job_requires_existing_run(self) -> None:
+        with tempfile.NamedTemporaryFile() as temp_db:
+            repository = SQLiteControlPlaneRepository(temp_db.name)
+
+            job = Job(
+                job_id="job-1",
+                run_id="missing-run",
+                job_kind="collect_source",
+                service_role="collector",
+            )
+
+            with self.assertRaises(sqlite3.IntegrityError):
+                repository.save_job(job)
+
+    def test_lease_requires_existing_job(self) -> None:
+        with tempfile.NamedTemporaryFile() as temp_db:
+            repository = SQLiteControlPlaneRepository(temp_db.name)
+
+            lease = Lease(
+                lease_id="lease-1",
+                job_id="missing-job",
+                claimant_id="collector-a",
+                issued_at=datetime(2026, 4, 30, 12, 0, 0),
+                expires_at=datetime(2026, 4, 30, 12, 5, 0),
+            )
+
+            with self.assertRaises(sqlite3.IntegrityError):
+                repository.save_lease(lease)
+
+    def test_result_requires_existing_job(self) -> None:
+        with tempfile.NamedTemporaryFile() as temp_db:
+            repository = SQLiteControlPlaneRepository(temp_db.name)
+
+            result = Result(
+                result_id="result-1",
+                job_id="missing-job",
+                status="succeeded",
+                summary="collector finished",
+            )
+
+            with self.assertRaises(sqlite3.IntegrityError):
+                repository.save_result(result)
 
 
 if __name__ == "__main__":

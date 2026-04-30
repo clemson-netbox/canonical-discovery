@@ -19,6 +19,8 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
         self._shared_connection = (
             sqlite3.connect(self._database_path) if self._database_path == ":memory:" else None
         )
+        if self._shared_connection is not None:
+            self._shared_connection.execute("PRAGMA foreign_keys = ON")
         self._initialize_schema()
 
     def save_run(self, run: Run) -> None:
@@ -212,7 +214,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
 
                 CREATE TABLE IF NOT EXISTS jobs (
                     job_id TEXT PRIMARY KEY,
-                    run_id TEXT NOT NULL,
+                    run_id TEXT NOT NULL REFERENCES runs(run_id),
                     job_kind TEXT NOT NULL,
                     service_role TEXT NOT NULL,
                     required_tags TEXT NOT NULL,
@@ -223,7 +225,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
 
                 CREATE TABLE IF NOT EXISTS leases (
                     lease_id TEXT PRIMARY KEY,
-                    job_id TEXT NOT NULL,
+                    job_id TEXT NOT NULL REFERENCES jobs(job_id),
                     claimant_id TEXT NOT NULL,
                     issued_at TEXT NOT NULL,
                     expires_at TEXT NOT NULL,
@@ -232,7 +234,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
 
                 CREATE TABLE IF NOT EXISTS results (
                     result_id TEXT PRIMARY KEY,
-                    job_id TEXT NOT NULL,
+                    job_id TEXT NOT NULL REFERENCES jobs(job_id),
                     status TEXT NOT NULL,
                     summary TEXT NOT NULL,
                     metrics TEXT NOT NULL,
@@ -253,6 +255,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             return
 
         connection = sqlite3.connect(self._database_path)
+        connection.execute("PRAGMA foreign_keys = ON")
         try:
             yield connection
             connection.commit()
