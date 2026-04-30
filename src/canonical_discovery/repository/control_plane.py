@@ -88,3 +88,7 @@ class ControlPlaneRepository(ABC):
     @abstractmethod
     def get_graph_submission(self, submission_id: str) -> GraphSubmission | None:
         raise NotImplementedError
+
+    @abstractmethod
+    def get_graph_submission_for_lease(self, lease_id: str) -> GraphSubmission | None:
+        raise NotImplementedError

@@ -90,6 +90,7 @@ class GraphSubmissionResponse(BaseModel):
 
 class ResultSubmissionRequest(BaseModel):
     collector_instance_id: str
+    lease_id: str
     job_id: str
     status: str
     summary: str
@@ -207,8 +208,8 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
         if lease.expires_at <= datetime.now(UTC):
             raise HTTPException(status_code=409, detail="lease expired")
 
-        submission = GraphSubmission(
-            submission_id=str(uuid4()),
+        submission = repository.get_graph_submission_for_lease(request.lease_id) or GraphSubmission(
+            submission_id=request.lease_id,
             collector_instance_id=request.collector_instance_id,
             lease_id=request.lease_id,
             payload=dict(request.payload),
@@ -223,9 +224,13 @@ def create_app(repository: ControlPlaneRepository) -> FastAPI:
         job = repository.get_job(request.job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="job not found")
-        lease = repository.get_lease_for_job(request.job_id)
+        lease = repository.get_lease(request.lease_id)
         if lease is None:
             raise HTTPException(status_code=409, detail="active lease not found for job")
+        if lease.job_id != request.job_id:
+            raise HTTPException(
+                status_code=409, detail="lease does not belong to the requested job"
+            )
         if lease.claimant_id != request.collector_instance_id:
             raise HTTPException(status_code=403, detail="lease claimant mismatch")
         if lease.expires_at <= datetime.now(UTC):

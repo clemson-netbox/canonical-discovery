@@ -405,6 +405,25 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
             submitted_at=datetime.fromisoformat(row[4]),
         )
 
+    def get_graph_submission_for_lease(self, lease_id: str) -> GraphSubmission | None:
+        row = self._fetch_one(
+            """
+            SELECT submission_id, collector_instance_id, lease_id, payload, submitted_at
+            FROM graph_submissions WHERE lease_id = ?
+            """,
+            (lease_id,),
+        )
+        if row is None:
+            return None
+
+        return GraphSubmission(
+            submission_id=row[0],
+            collector_instance_id=row[1],
+            lease_id=row[2],
+            payload=json.loads(row[3]),
+            submitted_at=datetime.fromisoformat(row[4]),
+        )
+
     def _initialize_schema(self) -> None:
         with self._connection() as connection:
             connection.executescript(
@@ -460,7 +479,7 @@ class SQLiteControlPlaneRepository(ControlPlaneRepository):
                 CREATE TABLE IF NOT EXISTS graph_submissions (
                     submission_id TEXT PRIMARY KEY,
                     collector_instance_id TEXT NOT NULL,
-                    lease_id TEXT NOT NULL REFERENCES leases(lease_id),
+                    lease_id TEXT NOT NULL UNIQUE REFERENCES leases(lease_id),
                     payload TEXT NOT NULL,
                     submitted_at TEXT NOT NULL
                 );
