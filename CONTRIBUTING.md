@@ -93,6 +93,14 @@ commands for the affected scope. Before opening or updating a PR, contributors
 should normally rerun `lint -> test -> build` for the branch state when those
 checks exist.
 
+For Python code in this repository, linting with Ruff should include both:
+
+- `poetry run ruff format --check .`
+- `poetry run ruff check .`
+
+If either check fails, fix the file contents before committing rather than
+deferring the repair to CI.
+
 ## CI And Image Publishing
 
 The repository should maintain GitHub Actions for both validation and image

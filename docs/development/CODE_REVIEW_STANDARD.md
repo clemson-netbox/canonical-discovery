@@ -31,6 +31,7 @@ Before merge, expect:
 - code review complete
 - unit tests added or updated as needed
 - runtime evidence retrieved when behavior changes
+- Ruff format and lint repairs already applied locally for Python changes
 
 ## Red Flags
 
